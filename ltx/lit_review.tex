@@ -44,6 +44,49 @@
 
 
 
+
+
+
+\subsection*{Overall Paper Breakdown}
+\vspace{6pt}
+Papers relating to techniques for the general tracking of multiple objects are split into four broad topics: those related to the mean-shift procedure (a very popular and effective technique in recent times), those related to object tracking with the use of color, those related to foreground modeling and motion extraction, and those related to cluster-based object tracking. \\
+\\
+\\
+The Mean-Shift Procedure \\
+a.k.a Kernel Based Object Detection \\
+\\ 
+The mean-shift procedure attempts to provide a robust way for non-rigid objects to be tracked. In this case, tracking refers to the task of maintaining the location of an object after its initial position has been specified. The mean shift procedure (a derivation and classic overview of which can be found in \cite{fukunaga_1975}and \cite{cheng_1995}) is a simple iterative procedure that repeatedly shifts each data point to the weighted average of data points in its neighborhood; it has been proven that this process converges for each data point. Additionally, the process (in particular, the specification of the neighborhood and the weight-distribution when calculating the weighted mean of nearby data points) is generalized so that multiple kernels can be specified and used to allow for varied clustering behaviors. It can be shown that, through this procedure, each data point becomes associated with a local point of high density (dependent upon the underlying weight distribution specified by the kernel) which naturally allows for clustering \cite{cheng_1995}. The mean shift algorithm has been implemented successfully to allow for a sort of kernel-based object tracking (\cite{comaniciu_2003}, \cite{comaniciu_1999}, \cite{comaniciu_2000}). Given the current position of an object at a given frame, the goal of tracking is often to find a nearby position in the next frame that has the most similar distribution over some common set of features. Usually this must be done through an exhaustive search, comparing the similarity of distributions at each nearby position with that at the current position. However, if a certain type of `isotropic kernel' (mean-shift kernel) known as the Bhattacharyya coefficient is chosen as a similarity metric between the feature distributions at two positions, it creates a smooth function where gradient descent techniques can be used to quickly converge upon an optimal subsequent position without using an exhaustive search. Many papers are concerned with applying this kernel-based object tracking scheme to different sets of features or with different kernels. Additionally, the scheme has been attempted with an adaptive kernel whose shape, scale, and orientation is influenced by a target being tracked \cite{wang_2004}, with a kernel adjusted by the estimated centroid of a tracked target \cite{mehmood_2009}, and with a heirarchical version of the mean-shift procedure \cite{dementhon_2002}. \\
+\\
+\\
+Object Tracking with the Use of Color \\
+\\
+Color has long been used to track non-rigid objects; again, in this case, tracking refers to the task of maintaining the location of an object after its initial position has been specified. In general, these schemes operate by modeling an object with some color-based appearance model, and using this model to find the object in subsequent frames \cite{elgammal_2001}. One classic approach involves modeling the color of a target using a Gaussian mixture model (GMM), and choosing a subsequent target position by searching a surrounding area for a position that yields the most similar GMM. Furthermore, the GMM is often allowed to adapt over time, and slowly change to model changes in lighting or other smooth time-based variations in the target's color \cite{raja_1998}, \cite{mckenna_1999}, \cite{jepson_2003}. Additionally, color has been successfully applied as the feature in the mean-shift procedure (kernel-based method) for tracking \cite{comaniciu_2003}, \cite{perez_2002}, \cite{nummiaro_2003}, \cite{lee_2011}. \\
+\\
+\\
+Foreground Detection\\
+a.k.a Frame Differencing, Image Differencing, Background Subtraction, Motion Detection\\
+\\
+Foreground detection, frame differencing, background subtraction, and motion detection all refer to slighly different things. Frame differencing and background subtraction involve comparing pixel values, or groups of pixel values, from two images, to detect a change surpassing some threshold. Often, background subtraction refers to comparing an image containing targets with an image of the background without targets, while frame or image differencing refers to comparing two subsequent images in a video. Foreground detection might also refer to a similar comparison technique, but also might be achieved by modeling pixel values. For example, sensitive foreground detection has been carried out robustly by modeling each pixel over time in order to infer a probability distribution over pixel values; if the pixel takes on a very unlikely value at a future time, it is marked as a foreground pixel \cite{stauffer_1999}, \cite{elgammal_2000}, \cite{elgammal_2002}. These pixel modeling techniques have been adapted to allow for time-dependent pixel value probability distributions, which help account for slighlty changing backgrounds, such as those caused from slight movements of background objects (for example, trees in outdoor scenes). Note that these techniques treat each pixel independently; this has a tendency to cause errors in foreground detection, resulting in fragmentation of foreground images (which is problematic as many of these methods intend to blob the foreground objects after detection in order to perform segmentation and locate objects' centroids). Post processing has been applied to add information regarding the edges of objects in an attempt to decrease fragmentation \cite{turdu_2007}. Similar to foreground detection, motion detection might also refer to a comparison technique or to other ways of extracting movement from an image, such as through techniques involving optical flow (a calculation based on a so called `generalized gradient model' of an image, which attempts to capture the speed and direction of movement over areas in the image) \cite{horn_1981}, \cite{bobick_2001}. In \cite{black_2000}, a motion detection and object tracking method is developed based on the relative motion of moving objects' boundaries, which are again found through analysis of optical flow.\\
+\\
+\\
+Clustering Based Object Tracking \\
+a.k.a. Most Similar Things to Our Project \\
+\\
+Clustering based object tracking and detection schemes typically attempt to either detect objects or simultaneously detect and track objects using minimal, easily extracted, or general information about a scene and the targets within it. These techniques often start with foreground (e.g. movement) or color data from each frame in a video, and attempt to automatically perform segmentation and tracking with temporal clustering (where clusters are somehow present at or shared between multiple frames). This differs from blob-based tracking approaches, where a pixel is assigned to the foreground or to a specific, segmented blob (each of which represents a target) such as in \cite{stauffer_1999}. In \cite{pece_2002}, foreground positions are found via frame differencing and modelled with a sequence of GMMs\\
+\cite{beleznai_2006}
+\cite{dickinson_2005}
+\cite{schiele_2006}
+  \\
+\\
+
+
+
+
+
+
+
+
+
 \subsection*{Some Terminology}
 \vspace{6pt}
 1. Multiple Target Tracking (MTT) \\
@@ -67,7 +110,20 @@ a.k.a. Video Tracking, Video Multiple Target Tracking, 2D Tracking, Object Track
 Definition: An algorithm that tracks the time-varying positions of multiple targets in a video; it typically involves target detection to find the center position of each target at each point in time, and MTT on the found target centers to accomplish tracking.
 \\
 \\
-
+4. Tracking \\
+\\
+a.k.a most terms in 3.
+\\
+Definition: Given the current position of a target, tracking algorithms find a likely subsequent position of a target (note that this is distinct from the VMTT definition above, as it does not involve target detection; however, terms describing VMTT and tracking are ofen used to refer to both).
+\\
+\\
+5. Background Subtraction\\
+\\
+a.k.a frame differencing, image differencing, motion detection \\
+\\
+Definition: The terms above all involve comparing pixel values, or groups of pixel values, from two images, to detect a change surpassing some threshold. Often 'background subtraction' refers to comparing an image containing targets with an image of the background without targets, while 'frame/image differencing' refers to comparing two subsequent images in a video. \\
+\\
+\\
 
 
 
