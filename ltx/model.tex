@@ -1,0 +1,103 @@
+\documentclass{article}
+
+	\usepackage{fullpage} % Include this if you want to cram lots of things on a page
+	 
+	\usepackage{amsmath} % these are standard macro packages of the American Mathematical Society
+	\usepackage{amssymb}
+	%\usepackage{stmaryrd}
+	
+	\usepackage{epsfig} % if you want figures
+	
+	\usepackage[margin=1.5in]{geometry}
+	
+	% \usepackage[numbers]{natbib}
+	\usepackage[square]{natbib}
+	
+	\usepackage{amsmath, epsfig}
+	\usepackage{amsfonts}
+	
+	\font\nipstenhv  = phvb at 8pt
+
+
+\newcommand{\matlab}[1]
+{\centerline{\parbox{.9\textwidth}{\noindent\textsc{\bf MATLAB:} #1}}}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\newcommand {\x}{\V{x}}
+\newcommand {\y}{\V{y}}
+\newcommand {\V}[1]{\mbox{\boldmath$#1$}}
+
+\newcommand{\tab}{\hspace*{2em}}
+
+
+
+
+
+
+
+
+\begin{document}
+
+
+\title{Model}
+\author{Willie}
+\maketitle
+\mbox{}
+
+
+
+
+
+
+
+\subsection*{The Data}
+Data are extracted from stationary, single-camera videos that contain moving objects. A moving object produces a trail of `motion points', which are data representing groups of pixels that exhibit sufficient change between consecutive frames. The $D$-dimensional position of each motion point (where $D=2$ for a typical video) is recorded, along with a $V$-dimensional vector representing a distribution over the motion point's pixel color values. Hence, the data consists of motion point observations $x = \{ x^{pos_{1}}, \cdots, x^{pos_{D}}, x^{col_{1}}, \cdots, x^{col_{V}} \}$.
+
+
+\subsection*{Likelihood}
+For a given object $k$ at video frame $t$, the set of positions of the object's motion points are modeled with a product (over each position dimension) of one-dimensional Gaussians
+\begin{equation}
+P(x_{t_{i}}^{pos} | \mu_{t, k}, \lambda_{t, k}) = \prod_{d=1}^{D} \mathcal{N}(x_{t_{i}}^{pos_{d}} | \mu_{t, k}^{d}, \lambda_{t, k}^{d})
+\end{equation}
+where $x_{t_{i}}^{pos} = \{ x_{t_{i}}^{pos_{1}}, \cdots, x_{t_{i}}^{pos_{D}} \}$,  $\mu_{t, k}^{d}$ is the mean of the $k^{th}$ Gaussian at time $t$ for dimension $d$, and $\lambda_{t, k}^{d}$ is the precision of the $k^{th}$ Gaussian at time $t$ for dimension $d$.  Likewise, for a given object $k$ at video frame $t$, the set of color vectors of the object's motion points are modeled with a multinomial
+\begin{equation}
+P(x_{t_{i}}^{col} | m_{t, k}) = Mult(x_{t_{i}}^{col} | m_{t, k})
+\end{equation}
+where $x_{t_{i}}^{col} = \{ x_{t_{i}}^{col_{1}}, \cdots, x_{t_{i}}^{col_{V}} \}$, $m_{t,k} = \{ m_{t,k}^{1}, \cdots, m_{t,k}^{V} \}$, $\sum_{v=1}^{V} m_{t, k}^{v} = 1$, and $m_{t,k}^{v}>0 \hspace{8pt} \forall v \in \{ 1, \cdots, V \}$. The likelihood for a motion point observation is thus
+\begin{equation}
+P(x_{t_{i}} | \mu_{t, k}, \lambda_{t, k}, m_{t, k}) =  Mult(x_{t_{i}}^{col} | m_{t, k})   \prod_{d=1}^{D}  \mathcal{N}(x_{t_{i}}^{pos_{d}} | \mu_{t, k}^{d}, \lambda_{t, k}^{d}) 
+\end{equation}
+
+
+\subsection*{Base Distribution $\mathbb{G}_{0}$}
+$\mathbb{G}_{0}$ is the base distribution of the underlying time-dependent Dirichlet process mixture; it also serves as a prior distribution for the parameters present in the likelihood. We make use of conjugate priors in the base distribution to allow for more efficient computation. In particular, for an object $k$ at time $t$, we let the prior distribution over the parameters of the motion point position distribution, $\mu_{t, k}$ and $\lambda_{t, k}$, be 
+\begin{equation}
+\mathbb{G}_{0}^{pos}(\mu_{t, k}, \lambda_{t, k} | \mu_{0}, n_{0}, a, b) = \prod_{d=1}^{D}[\mathcal{N}(\mu_{t, k}^{d} | \mu_{0}, n_{0} \lambda_{t, k}^{d})   Ga(\lambda_{t, k}^{d} | a, b)]
+\end{equation}
+where $\mu_{0}, n_{0}, a,$ and $b$ are parameters of the base distribution. Furthermore, for object $k$ at time $t$, we let the prior distribuion over the parameters of the motion point color vector distribution be
+\begin{equation}
+\mathbb{G}_{0}^{col}(m_{t, k} | q) = Dir(m_{t, k} | q)
+\end{equation}
+where $q = \{ q^{1}, \cdots, q^{V} \}$ is a parameter of the base distribution, where $q^{v}>0 \hspace{8pt} \forall v \in \{ 1, \cdots, V \}$. The base distribution is thus 
+\begin{equation}
+\mathbb{G}_{0}(\mu_{t, k}, \lambda_{t, k}, m_{t, k} | \mu_{0}, n_{0}, a, b, q) = Dir(m_{t, k} | q)  \prod_{d=1}^{D}[\mathcal{N}(\mu_{t, k}^{d} | \mu_{0}, n_{0} \lambda_{t, k}^{d})   Ga(\lambda_{t, k}^{d} | a, b)]
+\end{equation}
+
+
+
+
+\subsection*{Transition Kernels}
+Let $\phi_{t,k}^{pos} = \{ \mu_{t, k}, \lambda{t, k} \}$ and $\phi_{t,k}^{col} = \{ m_{t, k} \}$.  We define two transition kernels, $P(\phi_{t, k}^{pos} | \phi_{t-1, k}^{pos})$ and $P(\phi_{t, k}^{col} | \phi_{t-1, k}^{col})$, which dictate, respectively, the random walk of the motion point position parameters and the motion point color vector parameters over time. The transition kernels must be chosen so that their invariation distributions are $\mathbb{G}_{0}$, i.e. such that the following hold:
+\begin{equation}
+\int \mathbb{G}_{0}^{pos}(\phi_{t-1, k}^{pos}) P(\phi_{t, k}^{pos} | \phi_{t-1, k}^{pos}) d\phi_{t-1, k}^{pos}  =  \mathbb{G}_{0}^{pos}(\phi_{t, k}^{pos})
+\end{equation}
+\begin{equation}
+\int \mathbb{G}_{0}^{col}(\phi_{t-1, k}^{col}) P(\phi_{t, k}^{col} | \phi_{t-1, k}^{col}) d\phi_{t-1, k}^{col}  =  \mathbb{G}_{0}^{col}(\phi_{t, k}^{col})
+\end{equation}
+
+
+
+
+
+\end{document}
