@@ -33,11 +33,14 @@
 \usepackage{algorithmic}
 \usepackage{easybmat}
 \usepackage{footmisc}
+\usepackage[usenames,dvipsnames]{color}
 \usepackage{subfig}
 \renewcommand\algorithmiccomment[1]{// \textit{#1}}
 %
 \newcommand{\ignore}[1]{}
 \newcommand{\comment}[1]{}
+\newcommand{\frank}[1]{\textcolor{red}{\textsf{\emph{\textbf{\textcolor{blue}{#1}}}}}}
+
 \DeclareMathOperator*{\argmax}{arg\,max}
 
 % need to include style sheet for journal
@@ -60,12 +63,13 @@
 \maketitle
 \mbox{}
 
-
+\abstract{main points}
 
 
 
 \section{Introduction}
 
+\frank{this section should introduce our work and situate it relative to the literature}
 
 
 % \subsection{Topic Overview and Terminology}
