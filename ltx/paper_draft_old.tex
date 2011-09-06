@@ -1,9 +1,10 @@
+
 \documentclass{article}
+
 
 \usepackage{fullpage} % Include this if you want to cram lots of things on a page 
 \usepackage{amsmath} % these are standard macro packages of the American Mathematical Society
 \usepackage{amssymb}
-%\usepackage{stmaryrd}
 \usepackage{epsfig} % if you want figures
 \usepackage[margin=1.5in]{geometry}
 % \usepackage[numbers]{natbib}
@@ -15,6 +16,11 @@
 \newcommand {\y}{\V{y}}
 \newcommand {\V}[1]{\mbox{\boldmath$#1$}}
 \newcommand{\tab}{\hspace*{2em}}
+% need to include style sheet for journal i will submit to
+
+
+
+
 
 
 
@@ -24,10 +30,81 @@
 
 \begin{document}
 
-\title{Literature Review}
-\author{Willie}
+
+
+
+\title{Object Detection and Tracking with Dependent Dirichlet Processes}
+%\title{Object Detection and Tracking with Bayesian Nonparametrics}
+\author{Willie and Frank}
 \maketitle
 \mbox{}
+
+
+
+
+\section*{Introduction}
+An unsupervised algorithm for the automated localization and tracking of arbitrary objects in videos is desirable; an algorithm of this sort is one with the capability to decide which parts of a video constitute objects or regions of interest (detection), find the positions of distinct objects (localization), and maintain the positions of all detected objects over time (tracking).
+\\
+\\
+The march towards such an algorithm can be seen in the approaches taken to solve a number of related problems over the past three decades. Multiple target tracking (MTT), also know as data association or point matching, involves providing a general localization and tracking solution for objects represented as two-dimensional points; a few algorithms have been well established since the 1980s. Single object tracking (SOT), also known as video tracking, 2D tracking, or 'tracking of non-rigid objects', refers to the task of finding the position of an object at a later time, given a current instantiated position. VOT often focuses on the 
+
+At the same time, there has been much recent development in algorithms involving general methods for extracting parts of a video which may be considered objects or regions of interest often fall under the heading of foreground segmentation, background modeling, motion detection, or feature point detection. Schemes attempting to provide an automated method for the detection and tracking of objects or interest regions are varied, though often make use one common method falls under the general heading of blob tracking.
+\\
+One topic involves algorithms which attempt to perform combined object detection and tracking.
+\\
+Furthermore, research has focused on performing the above functions on videos with diverse object types, time varying object appearances, diverse numbers of objects, objects which may enter and exit the scene, occlusion of objects, presence of clutter, variable background characteristics, and unpredictable object behaviors.
+\\
+Details of specific methods in these topics will be covered presently. (?)
+\\
+\
+\\
+\subsection*{MTT and VOT}
+Discussion of tracking: MTT and VOT. Maybe I could go more into the discussion frank and I had here (instead of opening paragraph). More breadth, less depth on some of the VOT techniques (really read through the Survey on Object Tracking, ie include contour and template stuff). \\
+\\
+note: putting this here, not sure where it goes but needs to be hammered out in this intro: MTT (how i currently view it) treats each object as points, but does general tracking which leads to object detection (decides on number, structure, shape, etc. of paths, each of which represents an object over time). Current video detection and tracking schemes do this: at each frame, they try to detect an object (position, rough size/shape--need to define detection as something like this), and use these detections at each frame in object tracking (ranging from representing each detected object as a point and doing MTT methods, or a wide range of similarity-measure schemes of target characteristics/color which i call VOT methods. Also, object detection at further frames often aided by current detection/tracking...but even so, is still a detection at each frame, then tracking viewpoint). [note: this is almost a general tracking problem where each data point is a detected object]. A slightly different paradigm when approaching this problem involves general tracking [i need to define tracking better] which leads to object detection, like MTT but where objects are not considered points but instead as having some spatial shape and other characteristics too (eg color).
+Sorta new ideas:
+The goal of this project is to demonstrate a model that provides a stable framework for general unsupervised detection and tracking of multiple objects of arbitrary nature.
+
+\subsection*{General Object Detection}
+Discussion on foreground/background modeling, feature characteristics of interest-objects, such as feature points and motion points, other general object detection methods (related to detection in video...any purely image-based object detection methods?).
+
+\subsection*{}
+Discussion of combined detection and tracking schemes. Example: blob tracking. The simplest involves detection at each time and then tracking (more particularly: feature extraction [foreground modeling], object detection [segmentation], then object tracking). Some have tried to do this in a different order: generalized tracking over time, which leads to object detection (more particularly: feature extraction [foreground modeling], generalized object tracking [most akin to MTT [as i view it...learn more about MTT before i say this] but for VOT], results complete object detection). Talk about conception benefits of this reverse order over detection then tracking.
+\\
+Discussion on this project. This project attempts to do the final method presented in the background (general multiple object tracking leading to object detection). Introduce overall goals and benefits of this idea, terms/concepts/methods/models that will be discussed in future sections.
+
+
+
+
+\section*{Model Overview}
+Discuss types of models necessary for this generalized object tracking goal described above (e.g. models that allow for nonparametric decisions as to number of targets, size of targets, time over which targets are tracked/in scene). \\
+\\
+Discuss Dirichlet Mixture Model and Dirichlet Process.\\
+\\
+Discuss dependent Dirichlet process concept, and time-dependent Dirichlet process mixtures, and gpudpm (gpuddp frank calls it?).
+
+
+
+
+\section*{Model Specification and Inference}
+
+
+
+
+\section*{Experiments}
+
+
+
+
+\section*{Results}
+
+
+
+
+\section*{Conclusion}
+
+
+
 
 
 
@@ -179,34 +256,6 @@ The mean-shift procedure was used by \cite{beleznai_2006} to perform clustering 
 \bibliographystyle{plainnat}
 \bibliography{refs_lit_review} 
 \end{small}
-
-
-
-
-
-
-%\subsection*{Overview 2}
-%\vspace{6pt}
-%The phrase `multiple target tracking' (MTT) has been used to refer to two distinct but related problems: the first is the problem of detecting and tracking the positions of multiple targets of interest in a video, and the second is the problem of associating data points, where each data point is assumed to represent the centroid of some target whose position varies with time. The first is a problem in the field of machine vision and may use data association techniques from the second to accomplish MTT after targets of interest are detected and their positions represented as points.\\
-%\\
-%The goal of this project is to apply the generalized Polya urn Dirichlet process mixture model (GPUDPM) to videos containing multiple targets in a way that accomplishes data association without requiring explicit target detection. We hope to allow for a single flexible MTT algorithm that can handle videos with different numbers of targets, with diverse backdrops, whose targets display a wide range of characteristics, and where there are time-varying shifts in targets' characteristics, perspectives, or orientations.\\
-%\\
-%\\
-%The following are summaries of papers focusing on MTT as it relates to the association of target centroids, MTT as it relates to machine vision, and the generalized Polya urn Dirichlet process mixture model.
-
-
-
-% Hue et al. \cite{hue, 2002} introduce particle filters for MTT. 
-
-%Oh et al. (Markov Chain Monte Carlo Data Association for General Multiple-Target Tracking Problems, 2004) uses an MCMC approach to perform general data association. 
-
-
-
-
-
-
-% VMTT
-%Papers on this topic often involve algorithms that have a target detection phase (where the centroids of potential targets are collected, often by looking for specific target features) and a data association phase (where the centroids are sequenced in order to carry out tracking).\\
 
 
 

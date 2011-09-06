@@ -1,0 +1,81 @@
+
+
+
+Notes for paper_draft   2011-09-02
+
+
+
+New title ideas:
+Unsupervised Detection and Tracking of Arbitrary Objects with Dependent Dirichlet Process Mixtures
+
+
+
+
+The goal of this project is to demonstrate a model that provides a stable framework for general unsupervised detection and tracking of multiple objects of arbitrary nature.
+
+Single object tracking (SOT) is a very well-studied problem
+     baysian filters
+     mean shift methods
+     color-based modeling techniques
+     other appearance modeling methods
+     contour based trackers (look more into)
+     template based trackers (look more into)
+     
+Multiple Target Tracking (MTT) is a well studied problem
+     this is tracking of multiple objects when their positions are represented by points
+     
+Multiple object tracking schemes are almost completely extensions to SOT
+	
+	ie these are based on the usual SOT scheme:
+     1. objects are initialized (detected in some way initially)
+     2. objects are tracked
+     but then extend this scheme to make tracking dependent on the other objects being tracked (usually. dependent on other things too?)
+     
+     the dependencies on other objects formulated to solve typical multiple-target problems: such as when objects occlude each other (can cause tracks to converge), distinguish between similar objects, etc (think about more, also discussed in those slides)
+     
+     much research goes into developing methods based on multiple SOTs that do not suffer from these problems (partic look into that one paper for better object segmentation when using mean shift or was it baysian filtering and its successors)
+     
+     
+Suppose the goal is to develop a algorithm to develop an unsupervised algorithm for the automated localization and tracking of arbitrary objects in videos. This algorithm needs the capability to dictate which parts of a video constitute objects or regions of interest (detection), find (decide on) the positions of distinct objects (localization), and maintain the positions of all detected objects over time (tracking).
+	The algorithm needs to decide on which regions constitute distinct objects (and do this with arbitrary objects with varying sizes / orientations / characteristics).
+	Procedures that start by deciding that a region represents an object (ie initialization then SOT procedures) do not incorporate temporal or tracking (or other?) (likelihoods/probabilities/information) into the object detection which is often necesary for an algorithm whose goal is to distinguish between and localize distinct arbitrary objects (regardless of their size, orientation, shape, physical characteristics, or quantity). They are better suited to situations where object types are consistent, known beforehand, and allow initialization to be done easily with heuristic methods based on the known objects and their known characteristics.
+     
+only-model-based multiple object tracking schemes  /  not extensions to SOT
+	
+	instead of SOT-based methods that are based on initialization when objects are detected then SOT, there are model-based approaches that attempt to directly model data (features) extracted from a video (without any intermediate decisions as to detection of an object) and a learned model can be used to discern distinct targets, their positions, and object tracks.
+	
+	they do not do object initialization and then SOT, but attempt to model features extracted from videos in a way which accomplishes object detection and tracking simultaneously, as opposed to this (ad hoc?) two-step initialization, SOT procedure.
+	
+	utilize models that perform object detection and tracking in some sort of simultaneous manner or with 
+	extract start with features extracted from a video, and 
+
+
+
+
+
+
+
+
+
+
+
+
+List and organization of recent bibs
+
+want papers that handle tracking multiple objects
+
+    Almost all do multiple instantiated single object trackers
+
+
+MacCormick: A probabilistic exclusion principle for tracking multiple objects - 1999
+
+Khan, Balch, ---MRF for nearby/interacting objects
+
+That one mean-shift paper (or was it baysian filter?) to better handle multiple objects from combining together
+
+
+A General Framework for Multi-Human Tracking using 
+Kalman Filter and Fast Mean Shift Algorithms  
+Ahmed Ali
+uses mean shift on image difference, to help with usual multiple object tracking (baysian filters i think)
+
