@@ -274,7 +274,7 @@ l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
 \end{equation} \\
 with parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented.
 
-Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM hierarchically as, for each time step $t = \{1, \ldots, T\}$
+Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t = \{1, \ldots, T\}$
 \begin{align}
 \begin{split}
 	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
@@ -292,7 +292,7 @@ Using the cluster size and observation deletion terms introduced above, we can d
 The graphical corresponding with this formulation is shown in Figure 2.
 
 \begin{figure}[h]
-        \center{\includegraphics[width=120mm]{gpuddpm_gm_1.pdf}}
+        \center{\includegraphics[width=60mm]{gpuddpm_gm_1.pdf}}
         \caption{\label{Figure 2:} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
 \end{figure}
 
@@ -330,6 +330,7 @@ Additionally, the base distribution $\mathbb{G}_{0}$ of the DP acts as a prior o
 
 
 \section{Model Specification and Inference}
+\label{sec:modelspec}
 
 In the following sections, a particular extraction method for generating data from videos and a specific formulation of the model described in Section~\ref{sec:modeloverview} are given. Inference schemes on this model, which when carried out allow for unsupervised detection and tracking of multiple arbitrary objects, are also described.
 
@@ -369,12 +370,14 @@ We furthermore wish to capture the color (or grayscale) value of each pixel and 
 
 
 
-\subsection{Model Specification for Experiments}
-%
+\subsection{Model Implementation in Experiments}
+
+The following sections provide details on the data and specific model formulation (determined from the general model formulation of Section~\ref{sec:modeloverview}) involved in the experiments described in Section~\ref{sec:experiments}.
+
 
 \subsubsection{Data}
 
-The frame differencing and color counting extraction outlined above yields a set of data $\bold{X} \subset \mathbb{R}^{2} \times \mathbb{Z}_{+}^{V} \times \mathbb{Z}_{+}$, where each element $\bold{x} \in \bold{X}$ can be written
+The frame differencing and color counting extraction outlined in Section~\ref{sec:modelspec_extraction} yields a set of data $\bold{X} \subset \mathbb{R}^{2} \times \mathbb{Z}_{+}^{V} \times \mathbb{Z}_{+}$, where each element $\bold{x} \in \bold{X}$ can be written
 \begin{equation}
 \bold{x} = ( \bold{x}^{s}, \bold{x}^{c}, t ) = ( x^{s_{1}}, x^{s_{2}}, x^{c_{1}}, \ldots, x^{c_{V}}, t )
 \end{equation}
@@ -399,7 +402,7 @@ The distribution families assumed to generate each $\bold{x}$ must be justified.
 \subsubsection{Base Distribution $\mathbb{G}_{0}$ and Appearance Prior}
 
 $\mathbb{G}_{0}$ denotes the base distribution of the time-dependent Dirichlet process mixture; it also serves as a prior distribution for the parameters $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ present in the likelihood. We make use of conjugate priors in the base distribution to allow for more efficient computation. Specifically, in the experiments carried out in this paper, a normal-inverse-Wishart prior is placed on the multivariate normal parameters $\{ \boldsymbol{\mu}, \Sigma \}$ , and a Dirichlet prior is placed on the multinomial parameter $ \{  \bold{p}  \} $ (where the normal-inverse-Wishart is a conjugate prior for the multivariate normal component of the likelihood and the Dirichlet is a conjugate prior for the multinomial component). The prior can thus be written
-\begin{equation}
+\begin{equation} \label{basedistro}
 \mathbb{G}_{0}(\theta) = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
 \end{equation}
 where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution, $\mathcal{D}ir$ denotes the Dirichlet distribution, and the prior has the hyperparameters $\boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0}$ and $\bold{q}_{0}$.  \willie{reference text with good background on NiW and Dir distributions}
@@ -424,12 +427,12 @@ P(\theta_{t} | \theta_{t-1}) = \int P(\theta_{t} | \bold{z}_{t}) P(\bold{z}_{t} 
 In this way, the parameters of a cluster at a given time do not depend directly on their value at the previous time; they are instead dependent upon an intermediate sequence of auxiliary variables chosen to satisfy the above criteria, which allows the cluster parameters at each time step to be marginally distributed according to the base distribution $\mathbb{G}_{0}$.
 
 For each cluster, we introduce $M$ auxiliary variables $z_{t, 1}, \ldots, z_{t, M}$ at time $t$ that are each drawn from the product of a multivariate normal and multinomial when conditioned on the associated cluster parameters $\theta_{t} = \{ \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} \}$:
-\begin{equation}
+\begin{equation} \label{transker1}
 z_{t, m} | \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t}  \sim  \mathcal{N}(\boldsymbol{\mu}_{t}, \Sigma_{t}) \mathcal{M}n(\bold{p}_{t})   \hspace{15pt}   
 \forall m \in \{ 1, \ldots, M \}
 \end{equation}
 To satisfy the above criteria for auxiliary variables, at each time $t$ we specify the dependencies of a given cluster on its associated set of auxiliary variables by
-\begin{equation}
+\begin{equation} \label{transker2}
 \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} | \bold{z}_t  \sim  \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M})  \mathcal{D}ir(\bold{q}_{M})
 \end{equation}
 where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are parameters given by:
@@ -437,60 +440,128 @@ where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are 
 
 
 
+\subsection{Inference Implementation in Experiments}
 
-\subsection{Inference Implementations in Experiments}
-%
-Include a graphical model for each of the specified inference methods here? Or do I only need one graphical model for the model specified above?
+This section provides background on the inference procedure applied to the model and extraction data, which allows for unsupervised detection and tracking of objects. A Markov Chain Monte Carlo (MCMC) sampler is used to perform inference, which makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
-Include algorithms for each of the inference procedures.
+The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpudpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. The MCMC sampler described in this section operates in this alternate representation, which we can formulate as
+\begin{align}
+\begin{split}
+	 \bold{x}_{i} | c_{i}, \theta_{c_{i}} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i}}, \Sigma_{c_{i}})  \mathcal{M}n(\bold{p}_{c_{i}}) \\
+	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
+	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1 \\
+	\theta_{k, t} | \theta_{k, t-1}   &\sim 
+\begin{cases}
+	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
+	\mathbb{G}_{0}  \hspace{15pt} \text{if } k = K_{t-1} + 1
+\end {cases}
+\end{split}
+\end{align}
+where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in \willie{cite figure}.
+
+We define the state of the sampler to consist of the assignment variables for all observations, $c_{1}, \ldots, c_{N}$, the deletion variables for all observations, $d_{1}, \dots, d_{N}$, the sequence of cluster parameters for each active cluster $k$, $\theta_{k,1}, \ldots, \theta_{k, T}$, and the $M$ associated auxiliary variables for each cluster $\theta_{k,t}$, $z_{k,t,1}, \ldots, z_{k, t, M}$ (where $N$ denotes the number of observations and $T$ denotes the number of time steps).
+
+The sampler moves sequentially through each of the $N$ observations, sampling the assignment $c_{i}$ and the deletion variable $d_{i}$ at each step. After the final observation at a given time $t$ step is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. How each sample is generated will be explicitely shown in the following sections.
 
 
 
 
+\subsection{Modeling Background Noise}
+\willie{Do we think this is worth it? I can make extraction pretty clean on most datasets and this adds complication to an already complicated model}
 
-
-
-
-
-
-\section*{Experiments}
-
-
-
-
-
-\subsection{Synthetic Videos}
-
-\subsubsection{Occlusions}
-
-\subsubsection{Similar Appearances}
-
-\subsubsection{Different Numbers of Objects}
-
-\subsubsection{Objects wih Diverse Characteristics}
-
+Noisy extraction procedures may result in erroneous data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ 
 
 
 
 
 
-\subsection{Real-life Videos}
 
-\subsubsection{Complex Behavior}
-%
-Ants
 
-\subsubsection{Occlusions}
-%
-Various people scenes
 
-\subsubsection{Objects with Diverse Characteristics}
-%
-Traffic and Humans (PETS scenes)
 
-\subsubsection{Standard Data for Comparison}
-%
-PETS and other standard datasets
+
+
+\section{Experiments}
+\label{sec:experiments}
+
+The following sections provide details on performance evaluation metrics that have been developed for use in object detection and tracking studies (and that are used to quantify experimental results in this paper), synthetic video experiments that verify certain aspects of the technique presented in this paper, benchmark video experiments that demonstrate the performance of this technique in relation to other methods developed in recent years, and nonstandard video datasets to show the capability of this technique to perform unsupervised detection and tracking on a diverse range of object and video types.   
+
+
+\subsection{Performance Evaluation Metrics}
+
+Performance evaluation metrics, which intend to provide a standardized way of quantifying the success of a detection and tracking procedure on a given video, have started to become well studied and consistently used in the past four years. The metrics developed in \cite{kasturi_2008} and used in \cite{ellis_2010, taj_2007, lee_2009} have become well established metrics for evaluating the performance of object detection and tracking in videos and have been adopted by the Video Analysis and Content Extraction (VACE) program and the Classification of Events, Activities, and Relationships (CLEAR) consortium, two large projects concerned with video tracking. These metrics are used to quantify the experimental results in this study.
+
+The above metrics are dependent upon ground-truth data specifying the positions of each object in each frame throughout a video sequence. In the conducted experiments, we gained the synthetic video ground-truth during construction of the videos (described in Section~\ref{sec:syntheticvideos}), and we attempted to choose benchmark datasets with provided ground-truth data. However, the final benchmark dataset, in addition to all nonstandard video datasets, did not include ground-truth data; for these datasets, the Video Performance Evaluation Resource (ViPER) ground-truth tool \cite{doermann_2000} was used to gain ground-truth data.
+
+
+\subsubsection{Mapping Ground-Truth Tracks to Output Tracks}
+
+The problem of finding a mapping between a video's ground-truth tracks and an algorithm's output tracks is nontrivial, though necesary to solve in order to compute the performance evaluation metrics used in this study. In short, the typical solution to this problem involves first specifying a performance metric and then choosing the mapping from ground-truth tracks to output tracks which yields the most favorable performance metric value. This process is described in detail by Kasturi et al. \cite{kasturi_2008}; we follow the method outlined in this paper to find an optimal mapping. Additionally, the method employed in \cite{kasturi_2008} allows erroneous and undetected tracks to be left unmapped, which is both desired and necessary in the case where there is a different number of ground-truth and output tracks. Note that once a mapping from a collection of ground-truth tracks to a collection of output tracks has been established, one can determine which output tracks are false positives (the output tracks to which no groundtruth track is assigned) and which input tracks are false negatives (the input tracks that are not assigned to an output track). The numbers of tracks displaying both of these failures are factors in the performance metrics used in this study.
+
+%, where a numerical search algorith--the Hungarian algorithm \cite{munkres_1957}--is used to find an optimal mapping from ground-truth to output tracks without requiring the performance metric value of all possible mapping combinations to be computed (reducing the time complexity from factorial to polynomial time)
+
+
+\subsubsection{MODA and MOTA}
+
+The two metrics used to quantify results in this study are refered to as the Multiple Object Detection Accuracy (MODA) and Multiple Object Tracking Accuracy (MOTA). These metrics, along with the the ground-truth tracks of all objects in the video sequence and the the mapping as defined in the previous section, can be used to evaluate detection and tracking accurancy of the video. For a given video frame $t$, we define MODA as
+\begin{equation}
+MODA = 1 - \frac{m^{t} + e^{t}}{N_{g}^{t}}
+\end{equation}
+where $m^{t}$ is the number of missed object detections (ie true-negative detections), $e^{t}$ is the number of erroneous object detections (ie false positive detections), and $N_{g}^{t}$ is the number of ground truth objects (all at frame $t$).
+
+For a sequence of video frames $t \in \{ 1, \ldots, T \}$ we define MOTA as
+\begin{equation}
+MOTA = 1 - \frac{\sum_{t=1}^{T} m^{t} + e^{t} + s_{t}}{\sum_{t=1}^{T} N_{g}^{t}}
+\end{equation}
+where $s$ denotes the number of instances at frame $t$ where an object's identity switches from a previous frame (ie where the object's mapping differs between frame $t$ and frame $t-1$),  and the other terms are defined the same as above.
+
+
+
+
+\subsection{Synthetic Video Datasets}
+\label{sec:syntheticvideos}
+
+Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction and inference procedures described in Section~\ref{sec:modelspec} were carried out to return a collection of centroid-position-sequences, each corresponding to the sequence of positions of a tracked object over each frame that it is present in the video.
+
+
+\subsubsection{Tracking by Appearance}
+
+The first synthetic video experiment aimed to test the ability of the model and inference procedure to maintain the identity of independent objects based on color information alone. Two videos were constructed, both containing a red square (rgb value $[255,0,0]$ and size $20$ x $20$ pixels) and a blue square (rgb value $[0,0,255]$ and size $20$ x $20$ pixels). In both videos, the squares begin at opposite sides of the scene at frame $f=1$ and travel towards each other, arriving at the same location at $f=100$ (where the blue square occludes the red square). The second half of the two videos differ in that both squares in the first video continue in the same direction and end at the other's starting positions at $f=200$, and both squares in the second video reverse directions and end at their initial starting positions at $f=200$. Frame difference extraction on each video yields a dataset with identical spatial features; hence, successful tracking depends fully on the reasonable incorporation of color information into the model.
+
+
+
+
+\subsubsection{Occlusion and Appearance Change}
+
+The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
+
+% \subsubsection{Similar Appearances}
+
+% \subsubsection{Different Numbers of Objects}
+
+% \subsubsection{Objects wih Diverse Characteristics}
+
+
+
+
+\subsection{Benchmark Video Datasets}
+
+Benchmark video datasets for object tracking and detection have been produced to provide standard scenes on which researchers can compare detection and tracking results. These videos have been primarily produced for surveillance-related workshops--notably, for the International Workshop on Performance Evaluation of Tracking and Surveillance (PETS)--which provide a setting where researchers can focus on a collection of videos and computer vision goals. Four commonly used benchmark videos from four PETS workshops are 
+
+\subsubsection{PETS2000}
+
+\subsubsection{PETS2001 or VS-PETS/Soccer}
+
+\subsubsection{PETS2004/Caviar}
+
+\subsubsection{PETS2009/2010}
+
+
+\subsection{Nonstandard Video Datasets}
+
+\subsubsection{Ants Videos}
+
+\subsubsection{}
 
 
 
@@ -517,10 +588,10 @@ PETS and other standard datasets
 
 
 
-% \begin{small}
-% \bibliographystyle{plainnat}
-% \bibliography{paper_refs} 
-% \end{small}
+\begin{small}
+\bibliographystyle{plainnat}
+\bibliography{paper_refs} 
+\end{small}
 
 
 
