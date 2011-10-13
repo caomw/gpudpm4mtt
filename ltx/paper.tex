@@ -5,7 +5,6 @@
 \usepackage[square,numbers]{natbib}
 \usepackage{amsmath, epsfig}
 \usepackage{amsfonts}
-\usepackage{subfigure}
 \usepackage{graphicx}
 \usepackage{amsfonts}
 \usepackage{algorithm}
@@ -59,7 +58,7 @@
 % This paper presents a new method for unsupervised multiple object detection and tracking. We introduce, and provide details on the theory behind, a technique involving dependent Dirichlet process mixture models. Specifically, this work applies the model to data gained during the extraction process; note that data of this type is refered to at different points in the paper as `extraction data', `data points', 'points', or 'observations'. The model is first presented in an abstract form, which could be adapted to a wide range of extraction procedures and object appearance representations (mainly left for future studies). We then describe inference algorithms that allow object localization and tracking to be carried out. Afterwards, we formulate a definite model for data gained during a specific extraction procedure and implement the described inference procedures to carry out multiple object detection and tracking in a number of experiments.
 
 
-% \subsection{Related Work}
+\subsection{Related Work}
 
 % Related work can be broken down into studies relating to extraction procedures, unsupervised localization procedures, single object tracking methods, multiple object tracking methods, supervised multiple object detection and tracking methods, and unsupervised multiple object detection and tracking methods.
 
@@ -260,7 +259,7 @@ More rigorously, we take the definition of a DDPM to be a stochastic process def
 \subsubsection{Generalized Polya Urn Dependent Dirichlet Process Mixture}
 \label{sec:gpudpm}
 
-Data gained by performing extraction on videos containing objects is significantly time-dependent. Futhermore, the clusters of data, each of which represents an object in the video, might change in number as time progresses, since objects can enter and exit a scene. The specific DDPM used to model extraction data in this work while handling the above challenges is known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), and was introduced by \cite{caron_2006} in 2006. 
+Data gained by performing extraction on videos containing objects is significantly time-dependent. Futhermore, the clusters of data, each of which represents an object in the video, might change in number as time progresses, since objects can enter and exit a scene. The specific DDPM used to model extraction data in this work while handling the above challenges is known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), and was introduced by \cite{caron_2007} in 2006. 
 
 The GPUDDPM, when applied to data over T discrete time steps, can be viewed as a collection of DPMMs (one for each $t \in \{1, \ldots, T \}$), which are linked together by dependencies among their respective parameters. For example, the mixture component parameters at a given time step are dependent upon the mixture component parameters in adjacent time steps and the distribution and number of distinct cluster assignments at a given time step are dependent upon the same over a wider range of time steps, upon the distribution of observations' cluster assignments over this range, and upon a deletion procedure, described below.
 
@@ -351,13 +350,21 @@ which is equivalent to data with the baseline features described in Section~\ref
 
 Frame differencing is unsophisticated, computationally inexpensive, able to be applied to a wide range of static, single-camera videos (note that videos used in the experiments described in the following sections were chosen to be static; moving-camera videos should be used in conjunction with applicable extraction methods that allow for camera movement). We have found that, when correctly implemented, frame differencing is sufficiently general to extract the desired worm-like data clouds from a variety of videos containing multiple moving objects. A few examples of this extraction procedure on single video frames can be found in Figure 3.
 
+% \begin{figure}
+% \centering{
+% \includegraphics[width=45mm]{antpic2.png}}
+% %\hspace{2mm}
+% {\includegraphics[width=60mm]{frame_diff_ants_1.png}}
+% \caption{(a.) Frame of a video containing five ants. (b.) Frame differencing extraction results from the same frame \willie{this is just a demo of the type of image i will have here... these aren't actually from the same frame, and also formatting is screwed up)}}
+% \label{test}
+% \end{figure}
+
 \begin{figure}
-\centering
-{\includegraphics[width=45mm]{antpic2.png}}
-%\hspace{2mm}
-{\includegraphics[width=60mm]{frame_diff_ants_1.png}}
-\caption{(a.) Frame of a video containing five ants. (b.) Frame differencing extraction results from the same frame \willie{this is just a demo of the type of image i will have here... these aren't actually from the same frame, and also formatting is screwed up)}}
-\label{test}
+  \centering               
+  \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.5\textwidth]{antpic2.png}}
+  \subfloat[]{\label{fig:ants_img_framediff}\includegraphics[width=0.5\textwidth]{frame_diff_ants_1.png}}
+  \caption{(a.) Frame of a video containing five ants. (b.) Frame differencing extraction results from the same frame \willie{this is just a demo of the type of image i will have here... these aren't actually from the same frame, and also formatting is screwed up)}}
+  \label{fig:img_and_framediff}
 \end{figure}
 
 We furthermore wish to capture the color (or grayscale) value of each pixel and incorporate this color information into our model. For each pixel $x = (i, j, t) \in \Omega$ (defined above), we specify a square, $L$ pixels in length, centered on $(i, j)$, that selects a set of pixels surrounding $\bold{x}$ in frame $t$. We also specify a scalar color value that is able to be computed for each pixel; this value could, for example, be some function of the r-g-b or h-s-v value of a pixel. The color value of each of the selected pixels surrounding $\bold{x}$ is recorded. Afterwards, the set of possible color values (ie the range of color values to which a pixel may be assigned) is partitioned into $V$ bins, and the number of pixels with a color value lying in each of the bins yields a $V$ dimensional vector of `color counts'. We will refer to this extraction technique as `color counting'.
@@ -449,11 +456,11 @@ The generative model associated with the GPUDDPM is illustrated in Section~\ref{
 \begin{split}
 	 \bold{x}_{i} | c_{i}, \theta_{c_{i}} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i}}, \Sigma_{c_{i}})  \mathcal{M}n(\bold{p}_{c_{i}}) \\
 	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
-	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1 \\
-	\theta_{k, t} | \theta_{k, t-1}   &\sim 
+	d_{i}-i-1 | \rho  &\sim \text{Geo}(\rho)\\
+	\theta_{k, t} | \theta_{k, t-1} \willie{other-prior-params}  &\sim 
 \begin{cases}
 	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
-	\mathbb{G}_{0}  \hspace{15pt} \text{if } k = K_{t-1} + 1
+	\mathbb{G}_{0}(\willie{prior params})  \hspace{15pt} \text{if } k = K_{t-1} + 1
 \end {cases}
 \end{split}
 \end{align}
@@ -467,12 +474,8 @@ The sampler moves sequentially through each of the $N$ observations, sampling th
 
 
 \subsection{Modeling Background Noise}
-\willie{Do we think this is worth it? I can make extraction pretty clean on most datasets and this adds complication to an already complicated model}
 
-Noisy extraction procedures may result in erroneous data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ 
-
-
-
+Noisy extraction procedures may result in erroneous data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ to be a two component mixture, where one component is the base distribution and the other is a multivariate normal distribution with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution \willie{need more rigorus terms here} with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$.
 
 
 
@@ -528,12 +531,32 @@ Synthetic videos provide controlled scenarios in which aspects of the technique 
 
 The first synthetic video experiment aimed to test the ability of the model and inference procedure to maintain the identity of independent objects based on color information alone. Two videos were constructed, both containing a red square (rgb value $[255,0,0]$ and size $20$ x $20$ pixels) and a blue square (rgb value $[0,0,255]$ and size $20$ x $20$ pixels). In both videos, the squares begin at opposite sides of the scene at frame $f=1$ and travel towards each other, arriving at the same location at $f=100$ (where the blue square occludes the red square). The second half of the two videos differ in that both squares in the first video continue in the same direction and end at the other's starting positions at $f=200$, and both squares in the second video reverse directions and end at their initial starting positions at $f=200$. Frame difference extraction on each video yields a dataset with identical spatial features; hence, successful tracking depends fully on the reasonable incorporation of color information into the model.
 
+\begin{figure}
+  \centering               
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{cross_final}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{bounce_final}}
+  \caption{Each plot shows a sample from the posterior distribution of the state for one of the videos in synthetic experiment one, where the time axis ascends vertically, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. In both cases, the two objects are successfully tracked through occlusion, though the objects reverse direction in the second video. \willie{will show assignments by marker type in addition to color}}
+  \label{fig:synth_one_plot}
+\end{figure}
+
 
 
 
 \subsubsection{Occlusion and Appearance Change}
 
 The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
+
+\begin{figure}
+  \centering               
+  \subfloat[]{\includegraphics[width=0.35\textwidth, angle=30]{synth2_img}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{synth2_final}}
+  \caption{(a.) Video frame $f=10$ from synthetic experiment two. (b.) Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
+  \label{fig:synth_two_plot}
+\end{figure}
+
+
+
+
 
 % \subsubsection{Similar Appearances}
 
@@ -548,13 +571,91 @@ The second synthetic video experiment aimed to test tracking performance under o
 
 Benchmark video datasets for object tracking and detection have been produced to provide standard scenes on which researchers can compare detection and tracking results. These videos have been primarily produced for surveillance-related workshops--notably, for the International Workshop on Performance Evaluation of Tracking and Surveillance (PETS)--which provide a setting where researchers can focus on a collection of videos and computer vision goals. Four commonly used benchmark videos from four PETS workshops are 
 
-\subsubsection{PETS2000}
+%\subsubsection{PETS2000}
 
-\subsubsection{PETS2001 or VS-PETS/Soccer}
+\subsubsection{PETS2001}
 
-\subsubsection{PETS2004/Caviar}
+The PETS2001 dataset consists of
+
+
+\begin{figure}
+  \centering             
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_1}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_2}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_3}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_4}}
+  \caption{Four frames $f=25, 35, 45, 55$ from the PETS2001 sequence with one posterior sample mean and covarance matrix overlayed. \willie{will show path trail over prev 10 frames}}
+  \label{fig:pets2001_imgs}
+\end{figure}
+
+
+\begin{figure}
+	\centering
+	\subfloat[]{\includegraphics[width=0.52\textwidth]{pets2001_results_1}}
+	\subfloat[]{\includegraphics[width=0.48\textwidth]{pets2001_results_2}}
+	\caption{Sample from posterior of the state for the PETS2001 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
+	\label{fig:pets2001_results}
+\end{figure}
+
+
+
+
+
+%\subsubsection{PETS2004/Caviar}
 
 \subsubsection{PETS2009/2010}
+
+The PETS2009/2010 dataset consists of
+
+\begin{figure}
+  \centering             
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_1}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_2}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_3}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_4}}
+  \caption{Four frames $f=10, 25, 35, 75$ from the PETS2009 sequence with one posterior sample mean and covarance matrix overlayed. \willie{will show path trail over prev 10 frames}}
+  \label{fig:pets2009_imgs}
+\end{figure}
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=3in]{pets2009_results}
+	% \subfloat[]{\includegraphics[width=0.52\textwidth]{pets2001_results_1}}
+	% \subfloat[]{\includegraphics[width=0.48\textwidth]{pets2001_results_2}}
+	\caption{Sample from posterior of the state for the PETS2009 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
+	\label{fig:pets2009_results}
+\end{figure}
+
+
+
+
+
+\subsubsection{PETS2000}
+
+The PETS2000 dataset consists of
+
+\begin{figure}
+	\centering
+	\subfloat[]{\includegraphics[width=0.5\textwidth]{pets2000_results_1}}
+	\subfloat[]{\includegraphics[width=0.5\textwidth]{pets2000_results_2}}
+	\caption{\willie{This dataset has not done that well so far. Not sure why. Here are two typical cases.}}
+	\label{fig:pets2000_results}
+\end{figure}
+
+
+\subsubsection{PETS2004/Caviar Datasets}
+
+The Caviar datasets used in PETS2004 consist of multiple test-case-scenarios involving one or more humans.
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=3in]{pets2004_results_1}
+	\caption{Sample from posterior of the mean for frames $f = 1-20$ overlayed on frame $f=20$.}
+	\label{fig:pets2009_results}
+\end{figure}
+
 
 
 \subsection{Nonstandard Video Datasets}
