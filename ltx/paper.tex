@@ -38,35 +38,43 @@
 
 
 \section{Introduction}
-
-\frank{this section should introduce our work and situate it relative to the literature}
-\willie{okeydoke. this isn't ready yet. to avoid confusion I've just commented the whole section out.}
-
-
 % % \subsection{Topic Overview and Terminology}
 
-% This work is related to the study of algorithms that perform automated detection and tracking of arbitrary objects in videos; we define such algorithms as those with the ability to decide which spatiotemporal regions of a video constitute objects (extraction), find the positions and/or shapes of distinct objects (localization), and maintain the positions of the detected objects over time (tracking). Robust algorithms which can carry out these tasks are applicable to problems in the fields of surveillance, autonomous systems and robotics, and video summarization and compression. Approaches to these tasks have been proposed under different headings and in a variety of contexts. This section serves to introduce relevant terminology and topics of research.
+We define the task of automated detection and tracking of arbitrary objects in videos to be the fulfillment of three actions: deciding which spatiotemporal regions of a video constitute objects (`extraction'), finding the positions and/or shapes of distinct objects (`localization'), and maintaining the positions of the detected objects over time (`tracking'). Robust algorithms capable of carrying out these tasks are applicable to problems in the fields of surveillance, autonomous systems and robotics, and video summarization and compression. Approaches to these tasks have been proposed under different headings and in a variety of contexts; this paper serves to introduce a new technique involving the application of a dependent Dirichlet processes mixture model, which we hope will provide the foundation for a number of robust, unsupervised algorithms that can detect and track arbitrary objects in a wide range of videos.
 
-% The task of extraction is closely related to the topics of foregound segmentation, background modeling, motion detection, and appearance feature extraction. In general, these methods aim to extract features from regions of a video frame that are considered objects or are distinguished in some way from the background of a scene. Areas of research in this field include attempts to handle situations where the background displays motion or other dynamic characteristics, reduce noise caused by the false extraction of backgrounds, handle abberant image effects present in some videos, and operate accurately on scenes involving illumination changes.
+There does not yet exist a major body of research concerned primarily with methods for combining extraction, localization, and tracking to perform cohesive unsupervised detection of arbitrary objects in videos. Many papers that attempt to accomplish this goal focus on one of extraction, localization, or tracking, and attempt to integrate in methods from the other two tasks. However, a few key schemes for unsupervised detection and tracking do indeed exist. A widely applied, though unsophisticated, example is blob tracking. Blob tracking typically refers to methods that perform extraction and localization at each frame independently--for example, by assuming that object pixels have a different intensity than background pixels, setting a fixed pixel intensity threshold to extract pixel locations, and segmenting the extracted data into `blobs' to accomplish localization. A number of tracking techniques based on finding blobs in consecutive frames of a video with similar appearances have been attempted to maintain the identity of detected blobs over time. The main challenges, however, associated with blob tracking involve the difficulty of segmenting occluded objects in a given frame \cite{zhao2004tracking} and preventing multiple tracked blobs from collapsing onto and tracking a single object \cite{vermaak_2003}. These difficulties stem from the typical blob filter's need to perform detection via segmentation on individual frames and lack of a principled way to resist the collapse of independent tracks.
 
-% The task of localization is closely related to the topics of object detection, position-finding, target segmentation, contour-detection, template matching, and recognition. These methods are mainly concerned with finding the positions and/or shapes of objects in a given video frame, or with discerning between objects similar in position or appearance. There has been a focus in this field on developing techniques for representing an object's appearance, both to allow for localization of objects on a per-frame basis and to allow for consistent localization of a given object over time. Research into the unsupervised detection of arbitrary objects (which we define as methods that accomplish both extraction and localization) has included work involving image segmentation, parsing, and pixel clustering. These topics usually relate to the automated partitioning of images into meaningful regions. Note that the popular phrase `object detection' is also typically used to refer to procedures that carry out extraction and localization; however, it is often reserved to denote methods that are tailored to find the position of specified objects or object types (as opposed to arbitrary object detection), or to denote supervised methods, where extraction is peformed implicitely during searches for specified objects and localization procedures.
+%Note that blob tracking carries out the three main tasks described above, so it satisfies the criteria for the type of unsupervised detection and tracking algorithms studied in this work; 
 
-% The task of tracking is closely related to the topics of video tracking, data association, filtering, point matching, and `tracking of non-rigid objects'. In general, these tasks aim to maintain localization of the positions and/or shapes of objects over time. Areas of interest in this field involve developing metrics for judging the similarity between two object representations (for example, potential representations of the same object at adjacent frames in a video), techniques that provide a way to conduct efficient searches over a frame for regions that are similar to a given object, and methods for predicting the future position or appearance of an object. A great deal of research in this field over the past decade has focused on the development of algorithms to track multiple objects simultaneously. There has been a particular emphasis on developing ways to deal with problems such as object occlusions (where one object blocks another from the view of a video camera), complex object interactions, object coalescence (where one object is tracked by multiple times/redundantly), objects with similar appearances, variable (and potentially high) numbers of objects, and objects that enter and exit a field of view at different times.
-
-% There does not yet exist a major body of research concerned primarily with methods for combining extraction, localization, and tracking to perform cohesive unsupervised detection of arbitrary objects in videos. Many papers that attempt to accomplish this goal focus on one of extraction, localization, or tracking, and attempt to integrate in methods from the other two tasks. However, a few key schemes for unsupervised detection and tracking do indeed exist. A widely applied, though unsophisticated, technique to carry out such a procedure is called blob tracking. Blob tracking typically refers to methods that perform extraction and localization at each frame independently--for example, by assuming that object pixels have a different intensity than background pixels, setting a fixed pixel intensity threshold for extraction of object pixel locations, and segmenting the extracted data into `blobs' to accomplish localization. Afterwards, tracking is often carried out by finding the centroid of each blob and applying standard multiple target tracking algorithms (described in [section]). Note that blob tracking carries out the three main tasks described above, so it satisfies the criteria for the type of unsupervised detection and tracking algorithms studied in this work; there are, however, many challenges associated with blob tracking that render it impractical in many settings (detailed in [section]).
-
-% This paper presents a new method for unsupervised multiple object detection and tracking. We introduce, and provide details on the theory behind, a technique involving dependent Dirichlet process mixture models. Specifically, this work applies the model to data gained during the extraction process; note that data of this type is refered to at different points in the paper as `extraction data', `data points', 'points', or 'observations'. The model is first presented in an abstract form, which could be adapted to a wide range of extraction procedures and object appearance representations (mainly left for future studies). We then describe inference algorithms that allow object localization and tracking to be carried out. Afterwards, we formulate a definite model for data gained during a specific extraction procedure and implement the described inference procedures to carry out multiple object detection and tracking in a number of experiments.
+This paper presents the use of Dirichlet process mixture models as a technique for unsupervised multiple object detection and tracking, which we intend as a method to allow for robust object detection (particularly in cases where frame-by-frame segmentation would be difficult) and to keep the tracks of independent objects isolated. Specifically, this work applies a type of Bayesian nonparametric model to data gained during extraction; note that data of this type is refered to in the paper as `extraction data', `data points', or `observations'. The model is first presented in an abstract form, which could be adapted to a wide range of extraction procedures and object appearance representations (mainly left for exploration in future studies). We then describe inference algorithms that allow object localization and tracking to be carried out. Afterwards, we formulate a definite model for data gained during a specific extraction procedure and implement the described inference procedures to carry out multiple object detection and tracking in a number of experiments.
 
 
 \subsection{Related Work}
 
-% Related work can be broken down into studies relating to extraction procedures, unsupervised localization procedures, single object tracking methods, multiple object tracking methods, supervised multiple object detection and tracking methods, and unsupervised multiple object detection and tracking methods.
 
-% Extraction procedures can usually be classified as either model-based methods or heuristic-based methods. Model-based methods emphasize the detection of shapes of regions containing objects accurately and reducing background noise. For example, foreground extraction has been robustly carried out by modeling each pixel over time in order to infer a probability distribution over pixel values; if the pixel takes on a very unlikely value at a future time, it is marked as a foreground pixel at that point \citep{stauffer_1999, elgammal_2000, elgammal_2002}. These pixel modeling techniques have been adapted to allow for time-dependent probability distributions over pixel values, which help account for slighlty changing backgrounds, such as those caused from brief movements of background objects (for example, trees in outdoor scenes). Note that these techniques treat each pixel independently; this has a tendency to cause errors in foreground detection, resulting in fragmentation of foreground images (which is problematic as many of these methods intend to blob the foreground objects after detection in order to perform segmentation and locate objects' centroids). Post processing has been applied to add information regarding the edges of objects in an attempt to decrease fragmentation \citep{turdu_2007}. Others have attempted to achieve better foreground modeling in cases where the foreground and background exhibit similar color distributions (the so called `color similarity problem') by, for example, incorporating models of the foreground into a typical background model (such as the one described above) \citep{gallego_2009, mchugh_2009}.
+Related work can be broken down into studies relating to extraction procedures, localization techniques, single and multiple object tracking methods, and combination methods for joint object detection and tracking.
 
-% On the other hand, heuristic-based methods perform extracting by looking for temporal changes in pixel value characteristics. While these methods locate regions with objects less accurately than model-based methods, they are often much less computationally expensive. Frame differencing and background subtraction are two such methods, and involve comparing pixel values, or groups of pixel values, between two images, to detect a change surpassing some threshold. The goal of these techniques is to find locations in a scene that display motion, and to deem these moving areas the foreground of a scene.  Often, background subtraction refers to comparing an image containing targets with an image of the background without targets or with some model of the background that is learned as the video progresses (in these cases, objects that do not move throughout a scene will be treated as the background), while frame or image differencing refers to comparing two subsequent images in a video. Frame differencing has been used as the sole extraction method for object localization or tracking schemes with success \citep{pece_2002, beleznai_2006, chu_2007}, and also as a secondary data extraction method to help improve the accuracy of object tracking schemes \citep{perez_2002}. In addition to the two techniques mentioned above, there exists other ways of extracting movement from an image, such as through techniques involving optical flow (a calculation based on a so called `generalized gradient model' of an image, which attempts to capture the speed and direction of movement over areas in the image) \citep{horn_1981, bobick_2001}. In \citep{black_2000}, a motion detection and object tracking method is developed based on the relative motion of moving objects' boundaries, which are again found through analysis of optical flow.
+The task of extraction incorporates the tasks of foregound segmentation, background modeling, motion detection, and appearance feature extraction. In general, these methods aim to extract features from regions of a video frame that are considered objects or are distinguished in some way from the background of a scene. Areas of research in this field include attempts to handle situations where the background displays motion or other dynamic characteristics, reduce noise caused by the false extraction of backgrounds, handle abberant image effects present in some videos, and operate accurately on scenes involving illumination changes. These procedures can usually be classified as either model-based methods or heuristic-based methods. Model-based methods emphasize the detection of shapes of regions containing objects accurately and reducing background noise. For example, foreground extraction has been robustly carried out by modeling each pixel over time in order to infer a probability distribution over pixel values; if the pixel takes on a very unlikely value at a future time, it is marked as a foreground pixel at that point \citep{stauffer_1999, elgammal_2000, elgammal_2002}. These pixel modeling techniques have been adapted to allow for time-dependent probability distributions over pixel values, which help account for slighlty changing backgrounds, such as those caused from brief movements of background objects (for example, trees in outdoor scenes). Note that these techniques treat each pixel independently; this has a tendency to cause errors in foreground detection, resulting in fragmentation of foreground images (which is problematic as many of these methods intend to blob the foreground objects after detection in order to perform segmentation and locate objects' centroids). Post processing has been applied to add information regarding the edges of objects in an attempt to decrease fragmentation \citep{turdu_2007}. Others have attempted to achieve better foreground modeling in cases where the foreground and background exhibit similar color distributions (the so called `color similarity problem') by, for example, incorporating models of the foreground into a typical background model (such as the one described above) \citep{gallego_2009, mchugh_2009}.
 
-% There are an extensive collection of methods for tracking single, non-rigid, objects. For example, color has long been used for tracking. In this case, tracking refers to the task of maintaining the location of an object after its initial position has been specified. In general, these schemes operate by modeling an object with some color-based appearance model, and using this model to find the object in subsequent frames. One classic approach involves modeling the color of a target (in particular, a distribution over the hue-saturation space of a target region) with a Gaussian mixture model (GMM), and choosing subsequent target positions by searching surrounding areas for regions that yield similar GMMs. Furthermore, the GMM is often allowed to adapt over time, and slowly change to model changes in lighting or other smooth time-based variations in the target's color \citep{raja_1998, mckenna_1999, jepson_2003}. Others have attempted to abstract this work with a non-parametric color modeling approach based on kernel density estimation, which does not assume a specific underlying distribution (such as the Gaussian mixture in the previous case) and instead converges to reasonable distribution that depends on the data \citep{elgammal_2001}. Additionally, color has been successfully applied as the feature in the mean-shift procedure (kernel-based method) for tracking \citep{comaniciu_2003, perez_2002, nummiaro_2003, lee_2011}.
+On the other hand, heuristic-based methods perform extracting by looking for temporal changes in pixel value characteristics. While these methods locate regions with objects less accurately than model-based methods, they are often much less computationally expensive. Frame differencing and background subtraction are two such methods, and involve comparing pixel values, or groups of pixel values, between two images, to detect a change surpassing some threshold. The goal of these techniques is to find locations in a scene that display motion, and to deem these moving areas the foreground of a scene.  Often, background subtraction refers to comparing an image containing targets with an image of the background without targets or with some model of the background that is learned as the video progresses (in these cases, objects that do not move throughout a scene will be treated as the background), while frame or image differencing refers to comparing two subsequent images in a video. Frame differencing has been used as the sole extraction method for object localization or tracking schemes with success \citep{pece_2002, beleznai_2006, chu_2007}, and also as a secondary data extraction method to help improve the accuracy of object tracking schemes \citep{perez_2002}. In addition to the two techniques mentioned above, there exists other ways of extracting movement from an image, such as through techniques involving optical flow (a calculation based on a so called `generalized gradient model' of an image, which attempts to capture the speed and direction of movement over areas in the image) \citep{horn_1981, bobick_2001}. In \citep{black_2000}, a motion detection and object tracking method is developed based on the relative motion of moving objects' boundaries, which are again found through analysis of optical flow.
+
+The task of localization is closely related to the topics of object detection, position-finding, target segmentation, contour-detection, template matching, and recognition. These methods are mainly concerned with finding the positions and/or shapes of objects in a given video frame, or with discerning between objects similar in position or appearance. There has been a focus in this field on developing techniques for representing an object's appearance, both to allow for localization of objects on a per-frame basis and to allow for consistent localization of a given object over time. Research into the unsupervised detection of arbitrary objects (which we define as methods that accomplish both extraction and localization) has included work involving image segmentation, parsing, and pixel clustering. These topics usually relate to the automated partitioning of images into meaningful regions. Note that the popular phrase `object detection' is also typically used to refer to procedures that carry out extraction and localization; however, it is often reserved to denote methods that are tailored to find the position of specified objects or object types (as opposed to arbitrary object detection), or to denote supervised methods, where extraction is peformed implicitely during searches for specified objects and localization procedures.
+
+The task of tracking incorporates the topics of video tracking, data association, filtering, point matching, and `tracking of non-rigid objects'. In general, these tasks aim to maintain localization of the positions and/or shapes of objects over time. Areas of interest in this field involve developing metrics for judging the similarity between two object representations (for example, potential representations of the same object at adjacent frames in a video), techniques that provide a way to conduct efficient searches over a frame for regions that are similar to a given object, and methods for predicting the future position or appearance of an object. A great deal of research in this field over the past decade has focused on the development of algorithms to track multiple objects simultaneously. There has been a particular emphasis on developing ways to deal with problems such as object occlusions (where one object blocks another from the view of a video camera), complex object interactions, object coalescence (where one object is tracked by multiple times/redundantly), objects with similar appearances, variable (and potentially high) numbers of objects, and objects that enter and exit a field of view at different times.
+
+There are an extensive collection of methods for tracking single, non-rigid, objects. For example, color has long been used for tracking. In this case, tracking refers to the task of maintaining the location of an object after its initial position has been specified. In general, these schemes operate by modeling an object with some color-based appearance model, and using this model to find the object in subsequent frames. One classic approach involves modeling the color of a target (in particular, a distribution over the hue-saturation space of a target region) with a Gaussian mixture model (GMM), and choosing subsequent target positions by searching surrounding areas for regions that yield similar GMMs. Furthermore, the GMM is often allowed to adapt over time, and slowly change to model changes in lighting or other smooth time-based variations in the target's color \citep{raja_1998, mckenna_1999, jepson_2003}. Others have attempted to abstract this work with a non-parametric color modeling approach based on kernel density estimation, which does not assume a specific underlying distribution (such as the Gaussian mixture in the previous case) and instead converges to reasonable distribution that depends on the data \citep{elgammal_2001}. Additionally, color has been successfully applied as the feature in the mean-shift procedure (kernel-based method) for tracking \citep{comaniciu_2003, perez_2002, nummiaro_2003, lee_2011}.
+
+% 
+
+
+
+
+
+
+% Extraction 
+
+
+% 
 
 % The mean-shift procedure (also known as `kernel-based object tracking') attempts to provide a robust way for non-rigid objects to be tracked. This method is beneficial because it optimizes the search for the `next' position of an object (i.e. the search for the region in a frame which is most similar to a target region in the previous frame). This procedure--a derivation and overview of which can be found in \citep{fukunaga_1975, cheng_1995}--involves an iterative algorithm that repeatedly shifts each data point to the weighted average of data points in its neighborhood; it has been proven that this process converges for each data point. Additionally, the process (in particular, the specification of the neighborhood and the weight-distribution when calculating the weighted mean of nearby data points) is generalized so that multiple kernels can be specified and used to allow for varied clustering behaviors. It can be shown that, through this procedure, each data point becomes associated with a local point of high density (dependent upon the underlying weight distribution specified by the kernel) which naturally allows for clustering \citep{cheng_1995}. The mean shift algorithm has been implemented successfully to allow for a sort of kernel-based object tracking \citep{comaniciu_2003, comaniciu_1999, comaniciu_2000}. Given the current position of an object at a given frame, the goal of tracking is often to find a nearby position in the next frame that has the most similar distribution over some common set of features. Usually this must be done through an exhaustive search, comparing the similarity of distributions at each nearby position with that at the current position. However, if a certain type of `isotropic kernel' (mean-shift kernel) known as the Bhattacharyya coefficient is chosen as a similarity metric between the feature distributions at two positions, it creates a smooth function where gradient descent techniques can be used to quickly converge upon an optimal subsequent position without using an exhaustive search. Many papers are concerned with applying this kernel-based object tracking scheme to different sets of features or with different kernels. Additionally, the scheme has been attempted with an adaptive kernel whose shape, scale, and orientation is influenced by a target being tracked \citep{wang_2004}, with a kernel adjusted by the estimated centroid of a tracked target \citep{mehmood_2009}, and with a heirarchical version of the mean-shift procedure \citep{dementhon_2002}. 
 
@@ -128,7 +136,7 @@
 \section{Model Overview}
 \label{sec:modeloverview}
 %
-This section provides details on the nature of the data to be modeled, Dirichlet process mixture (DPM) models, and dependent Dirichlet process mixture (DDPM) models. We end by making explicit the connection between elements of the model and object characteristics that these elements represent (for example, the appearance and motion behavior of objects are specifically captured). The provided model is formulated here in a sufficently abstract manner to allow for various representations of objects to be specified in future studies.
+This section provides details on the nature of the data to be modeled, Dirichlet process mixture (DPM) models, and dependent Dirichlet process mixture (DDPM) models. We end by making explicit the way in which characteristics of video objects can be represented by elements of these models. We formulate the model in a sufficently abstract manner to allow for specific implementations tailored towards specified objects in future studies.
 
 
 
@@ -140,10 +148,10 @@ We defined the task of extraction to be the unsupervised decision of which spati
 
 Examples of additional features that could potentially be extracted from video frame regions containing objects include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform results (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and, when viewed in cumulation for multiple observations, are distributed in a way that allows for modeling and tractable inference (this is discussed further in section 3).
 
-We will use the phrase `baseline' three-dimensional extraction data to refer to the $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ from pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure 1. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
+We will use the phrase `baseline' three-dimensional extraction data to refer to the $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ from pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure \ref{fig:baselinedata}. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
 \begin{figure}[h]
-        \center{\includegraphics[width=75mm]{paths.png}}
-        \caption{\label{Figure 1:} Baseline three-dimensional extraction data gained from a video of multiple moving targets. The vertical axis denotes the frame number and the horizontal axes denote $d_{1}$ and $d_{2}$ spatial coordinates, respectively, of pixels within a given frame. The data comes from a 50 frame video segment showing 5 moving ants (note that one ant enters the scene near the middle of the segment).}
+        \center{\includegraphics[width=85mm]{../img/usbh_data_2.png}}
+        \caption{\label{fig:baselinedata} Baseline three-dimensional extraction data gained from a video segment containing 5 moving ants. The vertical axis denotes the frame number and the horizontal axes denote $d_{1}$ and $d_{2}$ spatial coordinates, respectively, of pixels within a given frame. Markers are colored by position for ease of viewing.}
 \end{figure}
 Inference performed on the time dependent Dirichlet process mixture model (described in the following sections) carries out clustering of the data, which allows each worm-like data cloud to be isolated and independent objects to be localized and tracked.
 
@@ -274,25 +282,36 @@ l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
 with parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented.
 
 Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t = \{1, \ldots, T\}$
+% \begin{align}
+% \begin{split}
+% 	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
+% 	c_{i}^{(t)} | m^{(t-1)}, \alpha  &\sim  \text{CRP}(m^{(t-1)}, \alpha) \\
+% 	m^{(t-1)} | m^{(t-2)}, c_{i}^{(t-1)}  &\sim \text{DEL}(m^{(t-2)}, c_{i}^{(t-1)}, \rho, \gamma) \\
+% 	\theta_{k}^{(t)} | \theta_{k}^{(t-1)}   &\sim 
+% \begin{cases}
+% 	P(\theta_{k}^{(t)} | \theta_{k}^{(t-1)}) \\
+% 	\mathbb{G}_{0}
+% \end{cases}
+% \end{split}
+% \end{align}
 \begin{align}
 \begin{split}
-	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
-	c_{i}^{(t)} | m^{(t-1)}, \alpha  &\sim  \text{CRP}(m^{(t-1)}, \alpha) \\
-	m^{(t-1)} | m^{(t-2)}, c_{i}^{(t-1)}  &\sim \text{DEL}(m^{(t-2)}, c_{i}^{(t-1)}, \rho, \gamma) \\
-	\theta_{k}^{(t)} | \theta_{k}^{(t-1)}   &\sim 
+	\bold{x}_{t}^{i} | c_{t}^{i}, \theta_{c_{t}^{i}, t} &\sim F(\theta_{c_{t}^{i}, t}) \\
+	c_{t}^{i} | m_{c_{t}^{i}, t-1}, \alpha  &\sim  \text{CRP}(m_{c_{t}^{i}, t-1}, \alpha) \\
+	m_{c_{t-1}^{i}, t-1} | m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}  &\sim \text{DEL}(m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}, \rho, \gamma) \\
+	\theta_{k, t} | \theta_{k, t-1}   &\sim 
 \begin{cases}
-	P(\theta_{k}^{(t)} | \theta_{k}^{(t-1)}) \\
+	P(\theta_{k, t} | \theta_{k, t-1}) \\
 	\mathbb{G}_{0}
-\end {cases}
+\end{cases}
 \end{split}
 \end{align}
 
-
-The graphical corresponding with this formulation is shown in Figure 2.
+The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
 
 \begin{figure}[h]
-        \center{\includegraphics[width=60mm]{gpuddpm_gm_1.pdf}}
-        \caption{\label{Figure 2:} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
+        \center{\includegraphics[width=100mm]{../img/gpuddp_gm_1.pdf}}
+        \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
 \end{figure}
 
 
@@ -348,22 +367,23 @@ where $i$ and $j$ respectively denote the two spatial positions of a pixel, and 
 \end{equation}
 which is equivalent to data with the baseline features described in Section~\ref{sec:data}.
 
-Frame differencing is unsophisticated, computationally inexpensive, able to be applied to a wide range of static, single-camera videos (note that videos used in the experiments described in the following sections were chosen to be static; moving-camera videos should be used in conjunction with applicable extraction methods that allow for camera movement). We have found that, when correctly implemented, frame differencing is sufficiently general to extract the desired worm-like data clouds from a variety of videos containing multiple moving objects. A few examples of this extraction procedure on single video frames can be found in Figure 3.
+Frame differencing is unsophisticated, computationally inexpensive, able to be applied to a wide range of static, single-camera videos (note that videos used in the experiments described in the following sections were chosen to be static; moving-camera videos should be used in conjunction with applicable extraction methods that allow for camera movement). We have found that, when correctly implemented, frame differencing is sufficiently general to extract the desired worm-like data clouds from a variety of videos containing multiple moving objects. A few examples of this extraction procedure on pairs of consecutive video frames can be found in Figure \ref{fig:img_and_framediff}.
 
 % \begin{figure}
 % \centering{
-% \includegraphics[width=45mm]{antpic2.png}}
+% \includegraphics[width=45mm]{../img/antpic2.png}}
 % %\hspace{2mm}
-% {\includegraphics[width=60mm]{frame_diff_ants_1.png}}
+% {\includegraphics[width=60mm]{../img/frame_diff_ants_1.png}}
 % \caption{(a.) Frame of a video containing five ants. (b.) Frame differencing extraction results from the same frame \willie{this is just a demo of the type of image i will have here... these aren't actually from the same frame, and also formatting is screwed up)}}
 % \label{test}
 % \end{figure}
 
 \begin{figure}
-  \centering               
-  \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.5\textwidth]{antpic2.png}}
-  \subfloat[]{\label{fig:ants_img_framediff}\includegraphics[width=0.5\textwidth]{frame_diff_ants_1.png}}
-  \caption{(a.) Frame of a video containing five ants. (b.) Frame differencing extraction results from the same frame \willie{this is just a demo of the type of image i will have here... these aren't actually from the same frame, and also formatting is screwed up)}}
+  \centering
+  \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_723.pdf}} 
+  \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_724.pdf}}
+  \subfloat[]{\label{fig:ants_img_framediff}\includegraphics[width=0.32\textwidth]{../img/usbh_framediff.png}}
+  \caption{(a., b.) Consecutive frames of a video containing four ants. (c.) Extraction results produced by taking the pixel-wise difference between these frames}
   \label{fig:img_and_framediff}
 \end{figure}
 
@@ -456,20 +476,35 @@ The generative model associated with the GPUDDPM is illustrated in Section~\ref{
 \begin{split}
 	 \bold{x}_{i} | c_{i}, \theta_{c_{i}} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i}}, \Sigma_{c_{i}})  \mathcal{M}n(\bold{p}_{c_{i}}) \\
 	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
-	d_{i}-i-1 | \rho  &\sim \text{Geo}(\rho)\\
+	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1\\
 	\theta_{k, t} | \theta_{k, t-1} \willie{other-prior-params}  &\sim 
 \begin{cases}
 	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
 	\mathbb{G}_{0}(\willie{prior params})  \hspace{15pt} \text{if } k = K_{t-1} + 1
-\end {cases}
+\end{cases}
 \end{split}
 \end{align}
-where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in \willie{cite figure}.
+where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in \ref{fig:gpuddpm_gm_2}.
+\begin{figure}[h]
+        \center{\includegraphics[width=100mm]{../img/gpuddp_gm_3.pdf}}
+        \caption{\label{fig:gpuddpm_gm_2} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
+\end{figure}
+
+
 
 We define the state of the sampler to consist of the assignment variables for all observations, $c_{1}, \ldots, c_{N}$, the deletion variables for all observations, $d_{1}, \dots, d_{N}$, the sequence of cluster parameters for each active cluster $k$, $\theta_{k,1}, \ldots, \theta_{k, T}$, and the $M$ associated auxiliary variables for each cluster $\theta_{k,t}$, $z_{k,t,1}, \ldots, z_{k, t, M}$ (where $N$ denotes the number of observations and $T$ denotes the number of time steps).
 
-The sampler moves sequentially through each of the $N$ observations, sampling the assignment $c_{i}$ and the deletion variable $d_{i}$ at each step. After the final observation at a given time $t$ step is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. How each sample is generated will be explicitely shown in the following sections.
+The sampler operates by iteratively sampling each member of the state given all other members. In particular, it moves sequentially through each of the $N$ observations, sampling the assignment $c_{i}$ and the deletion variable $d_{i}$ at each step. After the final observation at a given time $t$ step is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. The following sections detail how each sample is generated will be explicitely shown in the following sections.
 
+
+\subsubsection{Sampling Assignment Variables $c_{i}$}
+The assignment of each observation, $c_{i}$, given all other members of the state, 
+
+\subsubsection{Sampling Deletion Variables $d_{i}$}
+
+\subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
+
+\subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
 
 
 
@@ -492,32 +527,73 @@ The following sections provide details on performance evaluation metrics that ha
 
 \subsection{Performance Evaluation Metrics}
 
-Performance evaluation metrics, which intend to provide a standardized way of quantifying the success of a detection and tracking procedure on a given video, have started to become well studied and consistently used in the past four years. The metrics developed in \cite{kasturi_2008} and used in \cite{ellis_2010, taj_2007, lee_2009} have become well established metrics for evaluating the performance of object detection and tracking in videos and have been adopted by the Video Analysis and Content Extraction (VACE) program and the Classification of Events, Activities, and Relationships (CLEAR) consortium, two large projects concerned with video tracking. These metrics are used to quantify the experimental results in this study.
+Performance evaluation metrics, which intend to provide a standardized way of quantifying the success of a detection and tracking procedure on a given video, have started to become well studied and consistently used in the past four years. The metrics developed in \cite{kasturi_2008} and used in \cite{ellis_2010, taj_2007, lee_2009} have become well established metrics for evaluating the performance of object detection and tracking in videos and have been adopted by the Video Analysis and Content Extraction (VACE) program and the Classification of Events, Activities, and Relationships (CLEAR) consortium, two large-scale efforts concerned with video tracking and interaction analysis. These metrics are used to quantify the experimental results in this study.
 
-The above metrics are dependent upon ground-truth data specifying the positions of each object in each frame throughout a video sequence. In the conducted experiments, we gained the synthetic video ground-truth during construction of the videos (described in Section~\ref{sec:syntheticvideos}), and we attempted to choose benchmark datasets with provided ground-truth data. However, the final benchmark dataset, in addition to all nonstandard video datasets, did not include ground-truth data; for these datasets, the Video Performance Evaluation Resource (ViPER) ground-truth tool \cite{doermann_2000} was used to gain ground-truth data.
+The above metrics are dependent upon ground-truth data specifying the positions of each object in each frame throughout a video sequence. In the experiments described below, we gained the synthetic video ground-truth during construction of the videos (described in Section~\ref{sec:syntheticvideos}), and we used the Video Performance Evaluation Resource (ViPER) ground-truth software \cite{doermann_2000}, an open source tool commonly used in the video tracking community, to author ground-truth data for each of the benchmark datasets.
 
 
-\subsubsection{Mapping Ground-Truth Tracks to Output Tracks}
+\subsubsection{Mapping Ground-Truth to Output}
+\label{sec:mappingtoground}
 
-The problem of finding a mapping between a video's ground-truth tracks and an algorithm's output tracks is nontrivial, though necesary to solve in order to compute the performance evaluation metrics used in this study. In short, the typical solution to this problem involves first specifying a performance metric and then choosing the mapping from ground-truth tracks to output tracks which yields the most favorable performance metric value. This process is described in detail by Kasturi et al. \cite{kasturi_2008}; we follow the method outlined in this paper to find an optimal mapping. Additionally, the method employed in \cite{kasturi_2008} allows erroneous and undetected tracks to be left unmapped, which is both desired and necessary in the case where there is a different number of ground-truth and output tracks. Note that once a mapping from a collection of ground-truth tracks to a collection of output tracks has been established, one can determine which output tracks are false positives (the output tracks to which no groundtruth track is assigned) and which input tracks are false negatives (the input tracks that are not assigned to an output track). The numbers of tracks displaying both of these failures are factors in the performance metrics used in this study.
+The problem of finding a mapping between a video's ground-truth tracks and an algorithm's output tracks is nontrivial, though necesary to solve in order to compute the performance evaluation metrics used in this study. In short, the typical solution to this problem involves first specifying a performance metric and then choosing the mapping from ground-truth tracks to output tracks which yields the most favorable performance metric value. This process is described in detail by Kasturi et al. \cite{kasturi_2008}; we follow the method outlined in this paper to find an optimal mapping. Similiar to descriptions in this paper, we implement the Hungarian algorithm \cite{munkres_1957} as a polynomial-time ($O(n^{3})$) solution to the problem of optimally mapping two sets of tracks once the similarity between any two tracks given some specified metric is established. Additionally, the method employed in \cite{kasturi_2008} allows erroneous and undetected tracks to be left unmapped, which is both desired and necessary in the case where there is a different number of ground-truth and output tracks. Note that once a mapping from a collection of ground-truth tracks to a collection of output tracks has been established, one can determine which output tracks are false positives (the output tracks to which no ground-truth track is assigned) and which input tracks are false negatives (the input tracks that are not assigned to an output track). The numbers of tracks displaying both of these failures are factors in the performance metrics used in this study.
 
 %, where a numerical search algorith--the Hungarian algorithm \cite{munkres_1957}--is used to find an optimal mapping from ground-truth to output tracks without requiring the performance metric value of all possible mapping combinations to be computed (reducing the time complexity from factorial to polynomial time)
 
 
-\subsubsection{MODA and MOTA}
+% \subsubsection{MODA and MOTA}
 
-The two metrics used to quantify results in this study are refered to as the Multiple Object Detection Accuracy (MODA) and Multiple Object Tracking Accuracy (MOTA). These metrics, along with the the ground-truth tracks of all objects in the video sequence and the the mapping as defined in the previous section, can be used to evaluate detection and tracking accurancy of the video. For a given video frame $t$, we define MODA as
+% The two metrics used to quantify results in this study are refered to as the Multiple Object Detection Accuracy (MODA) and Multiple Object Tracking Accuracy (MOTA). These metrics, along with the the ground-truth tracks of all objects in the video sequence and the the mapping as defined in the previous section, can be used to evaluate detection and tracking accurancy of the video. For a given video frame $t$, we define MODA as
+% \begin{equation}
+% MODA = 1 - \frac{m^{t} + e^{t}}{N_{g}^{t}}
+% \end{equation}
+% where $m^{t}$ is the number of missed object detections (ie true-negative detections), $e^{t}$ is the number of erroneous object detections (ie false positive detections), and $N_{g}^{t}$ is the number of ground truth objects (all at frame $t$).
+
+% For a sequence of video frames $t \in \{ 1, \ldots, T \}$ we define MOTA as
+% \begin{equation}
+% MOTA = 1 - \frac{\sum_{t=1}^{T} m^{t} + e^{t} + s_{t}}{\sum_{t=1}^{T} N_{g}^{t}}
+% \end{equation}
+% where $s$ denotes the number of instances at frame $t$ where an object's identity switches from a previous frame (ie where the object's mapping differs between frame $t$ and frame $t-1$),  and the other terms are defined the same as above.
+
+
+
+\subsubsection{SFDA and ATA}
+
+The two metrics used to quantify performance in this study are known as the the Sequence Frame Detection Accuracy (SFDA) and the Average Tracking Accuracy (ATA). These metrics were developed during VACE Phase II to provide a single, comprehensive metric to describe detection, and one to describe tracking.
+
+The following terms are used in the definitions of the performance metrics:
+\begin{itemize}
+\item $G_{i}$ denotes the spatiotemporal region occupied by the $i$th ground-truth object in a video, and $G_{i}^{(t)}$ denotes the region occupied by the $i$th ground-truth object in frame $t$.
+\item $D_{i}$ denotes the spatiotemporal region occupied by the $i$th detected object in a video, and $D_{i}^{(t)}$ denotes the region occupied by the $i$th detected object in frame $t$.
+\item $N_{G}$ denotes the total number of unique ground-truth objects in a video, and $N_{G}^{(t)}$ denotes the number of unique ground-truth objects present at frame $t$.
+\item $N_{D}$ denotes the total number of unique detected objects in a video, and $N_{D}^{(t)}$ denotes the number of unique detected objects present at frame $t$.
+\item $N_{\text{frames}}$ denotes the total number of frames in a video, and $N_{\text{frames}}^{(i)}$ denotes the number of frames in which an object $i$ (which can be a ground-truth or detected object, depending on the context) is present in a video.
+\item $N_{\text{mapped}}$ denotes the number of mapped ground-truth/detect pairs in a video, and $N_{\text{mapped}}^{(t)}$ denotes the number of mapped ground-truth/detect pairs present at frame $t$.
+\end{itemize}
+
+The SFDA metric quantifies the performance of an object detection algorithm as a function of the number of correct detects, false positive detects, missed (true negative) detects, and spatial allignment of detects relative to the ground-truth. The SFDA is calculated by computing the Frame Detection Accuracy at frame $t$ ($\text{FDA}^{(t)}$) for each frame in a video sequence. The FDA provides a measure of the allignment between ground-truth and detected objects in a given frame via the overlap ratio of a ground-truth/detect pair, defined to be the ratio of the intersection of ground-truth and detect regions to the union of ground-truth and detect regions. Formally, we can write
 \begin{equation}
-MODA = 1 - \frac{m^{t} + e^{t}}{N_{g}^{t}}
+\text{FDA}^{(t)} = \frac{\text{Overlap Ratio}}{\left(\frac{N_{G}^{(t)} + N_{D}^{(t)}}{2}\right)}
 \end{equation}
-where $m^{t}$ is the number of missed object detections (ie true-negative detections), $e^{t}$ is the number of erroneous object detections (ie false positive detections), and $N_{g}^{t}$ is the number of ground truth objects (all at frame $t$).
-
-For a sequence of video frames $t \in \{ 1, \ldots, T \}$ we define MOTA as
+where
 \begin{equation}
-MOTA = 1 - \frac{\sum_{t=1}^{T} m^{t} + e^{t} + s_{t}}{\sum_{t=1}^{T} N_{g}^{t}}
+\text{Overlap Ratio} = \sum_{i = 1}^{N_{\text{mapped}}^{(t)}} \frac{\left|G_{i}^{(t)} \cap D_{i}^{(t)}\right|}{\left|G_{i}^{(t)} \cup D_{i}^{(t)}\right|}
 \end{equation}
-where $s$ denotes the number of instances at frame $t$ where an object's identity switches from a previous frame (ie where the object's mapping differs between frame $t$ and frame $t-1$),  and the other terms are defined the same as above.
+The term $N_{\text{mapped}}^{(t)}$ refers to an optimal mapping between ground-truth and detects at frame $t$ as specified in section \ref{sec:mappingtoground} using the $\text{FDA}^{(t)}$ as the relevant metric. Given the $\text{FDA}^{(t)}$ at each frame, the SFDA can be computed; this metric may be viewed as the average FDA over all frames of a video sequence. We define
+\begin{equation}
+\text{SFDA} = \frac{\sum_{t=1}^{N_{\text{frames}}} \text{FDA}^{(t)}}{\sum_{t=1}^{N_{\text{frames}}} \exists \left( N_{G}^{(t)} \vee N_{D}^{(t)} \right)}
+\end{equation}
+where $\exists \left( N_{G}^{(t)} \vee N_{D}^{(t)} \right)$ yields a 1 if either a detected or ground-truth object is present in frame $t$ and a 0 otherwise.
 
+The ATA metric quantifies the performance of an object tracking algorithm as a function of the spatial overlap of a mapped set of sequences of detected object positions to a set of sequences of groundtruth object positions. The ATA is calculated by first computing the Sequence Track Detection Accuracy (STDA), which can be viewed as a tracking performance measure unnormalied in terms of the number of objects. We can write the STDA as
+\begin{equation}
+\text{STDA} = \sum_{i=1}^{N_{\text{mapped}}} \frac{\sum_{t=1}^{N_{\text{frames}}} \left( \frac{\left|G_{i}^{(t)} \cap D_{i}^{(t)}\right|}{\left|G_{i}^{(t)} \cup D_{i}^{(t)}\right|}  \right) }{ N_{(G_{i} \cup D_{i} \neq \emptyset)} }
+\end{equation}
+where $N_{\text{mapped}}$ refers to an optimal mapping between ground-truth and detected objects as specified in section \ref{sec:mappingtoground} using the STDA as the relevant metric, and $N_{(G_{i} \cup D_{i} \neq \emptyset)}$ denotes the number of unique objects (including false positive objects, true negative objects, and correctly mapped objects) in a video sequence.
+
+Given the STDA for a video sequence, the ATA can be computed by the formula
+\begin{equation}
+\text{ATA} = \frac{\text{STDA}}{\left( \frac{N_{G} + N_{D}}{2} \right)}
+\end{equation}
 
 
 
@@ -533,8 +609,8 @@ The first synthetic video experiment aimed to test the ability of the model and 
 
 \begin{figure}
   \centering               
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{cross_final}}
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{bounce_final}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/cross_final}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/bounce_final}}
   \caption{Each plot shows a sample from the posterior distribution of the state for one of the videos in synthetic experiment one, where the time axis ascends vertically, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. In both cases, the two objects are successfully tracked through occlusion, though the objects reverse direction in the second video. \willie{will show assignments by marker type in addition to color}}
   \label{fig:synth_one_plot}
 \end{figure}
@@ -542,18 +618,24 @@ The first synthetic video experiment aimed to test the ability of the model and 
 
 
 
-\subsubsection{Occlusion and Appearance Change}
+\subsubsection{Tracking though Occlusion and Appearance Shift}
 
 The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
 
 \begin{figure}
   \centering               
-  \subfloat[]{\includegraphics[width=0.35\textwidth, angle=30]{synth2_img}}
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{synth2_final}}
+  % \subfloat[]{\includegraphics[width=0.35\textwidth, angle=30]{../img/synth2_img}}
+  \subfloat[]{\includegraphics[width=0.55\textwidth]{../img/synth2_img_b}}
+  \subfloat[]{\includegraphics[width=0.45\textwidth]{../img/synth2_final}}
   \caption{(a.) Video frame $f=10$ from synthetic experiment two. (b.) Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
   \label{fig:synth_two_plot}
 \end{figure}
 
+
+\begin{figure}[h]
+        \center{\includegraphics[width=0.99\textwidth]{../img/synth2_alphaimg_hd.png}}
+        \caption{\label{fig:synth2_alphaimg} Extracted data and sample from the posterior of the model overlaid on three, time-varying images from synthetic experiment 2.}
+\end{figure}
 
 
 
@@ -580,24 +662,43 @@ The PETS2001 dataset consists of
 
 \begin{figure}
   \centering             
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_1}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_2}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_3}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2001_4}}
-  \caption{Four frames $f=25, 35, 45, 55$ from the PETS2001 sequence with one posterior sample mean and covarance matrix overlayed. \willie{will show path trail over prev 10 frames}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_1}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_2}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_3}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_4}}
+  \caption{Four frames $f=25, 35, 45, 55$ from the PETS2001 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames}}
   \label{fig:pets2001_imgs}
 \end{figure}
 
 
 \begin{figure}
 	\centering
-	\subfloat[]{\includegraphics[width=0.52\textwidth]{pets2001_results_1}}
-	\subfloat[]{\includegraphics[width=0.48\textwidth]{pets2001_results_2}}
+	\subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
+	\subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
 	\caption{Sample from posterior of the state for the PETS2001 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
 	\label{fig:pets2001_results}
 \end{figure}
 
 
+
+\begin{figure}[h]
+        \center{\includegraphics[width=85mm]{../img/pets2001_alphaimg_hr.png}}
+        \caption{\label{fig:baselinedata} Extracted data and sample from posterior of the model overlaid on three, time-varying images from the pets2001 dataset.}
+\end{figure}
+
+
+
+\subsubsection{PETS2000}
+
+The PETS2000 dataset consists of
+
+\begin{figure}
+	\centering
+	\subfloat[]{\includegraphics[width=1\textwidth]{../img/pets2000_results_1}}
+	%\subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_results_2}}
+	\caption{pets2000}
+	\label{fig:pets2000_results}
+\end{figure}
 
 
 
@@ -609,39 +710,24 @@ The PETS2009/2010 dataset consists of
 
 \begin{figure}
   \centering             
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_1}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_2}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_3}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{pets2009_4}}
-  \caption{Four frames $f=10, 25, 35, 75$ from the PETS2009 sequence with one posterior sample mean and covarance matrix overlayed. \willie{will show path trail over prev 10 frames}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_1}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_2}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_3}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_4}}
+  \caption{Four frames $f=10, 25, 35, 75$ from the PETS2009 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames}}
   \label{fig:pets2009_imgs}
 \end{figure}
 
 
 \begin{figure}
 	\centering
-	\includegraphics[width=3in]{pets2009_results}
-	% \subfloat[]{\includegraphics[width=0.52\textwidth]{pets2001_results_1}}
-	% \subfloat[]{\includegraphics[width=0.48\textwidth]{pets2001_results_2}}
+	\includegraphics[width=3in]{../img/pets2009_results}
+	% \subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
+	% \subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
 	\caption{Sample from posterior of the state for the PETS2009 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
 	\label{fig:pets2009_results}
 \end{figure}
 
-
-
-
-
-\subsubsection{PETS2000}
-
-The PETS2000 dataset consists of
-
-\begin{figure}
-	\centering
-	\subfloat[]{\includegraphics[width=0.5\textwidth]{pets2000_results_1}}
-	\subfloat[]{\includegraphics[width=0.5\textwidth]{pets2000_results_2}}
-	\caption{\willie{This dataset has not done that well so far. Not sure why. Here are two typical cases.}}
-	\label{fig:pets2000_results}
-\end{figure}
 
 
 \subsubsection{PETS2004/Caviar Datasets}
@@ -651,8 +737,8 @@ The Caviar datasets used in PETS2004 consist of multiple test-case-scenarios inv
 
 \begin{figure}
 	\centering
-	\includegraphics[width=3in]{pets2004_results_1}
-	\caption{Sample from posterior of the mean for frames $f = 1-20$ overlayed on frame $f=20$.}
+	\includegraphics[width=3in]{../img/pets2004_results_1}
+	\caption{Sample from posterior of the mean for frames $f = 1-20$ overlaid on frame $f=20$.}
 	\label{fig:pets2009_results}
 \end{figure}
 
