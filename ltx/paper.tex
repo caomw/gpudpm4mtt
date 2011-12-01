@@ -1,5 +1,5 @@
 
-\documentclass[smallcondensed, draft]{svjour3}
+\documentclass[smallcondensed, final]{svjour3}
 
 
 \usepackage[square,numbers]{natbib}
@@ -19,9 +19,6 @@
 \newcommand{\frank}[1]{\textcolor{red}{\textsf{\emph{\textbf{\textcolor{blue}{#1}}}}}}
 \newcommand{\willie}[1]{\textcolor{green}{\textsf{\emph{\textbf{\textcolor{green}{#1}}}}}}
 \DeclareMathOperator*{\argmax}{arg\,max}
-
-
-% need to include style sheet for journal
 
 
 
@@ -149,10 +146,10 @@ We defined the task of extraction to be the unsupervised decision of which spati
 Examples of additional features that could potentially be extracted from video frame regions containing objects include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform results (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and, when viewed in cumulation for multiple observations, are distributed in a way that allows for modeling and tractable inference (this is discussed further in section 3).
 
 We will use the phrase `baseline' three-dimensional extraction data to refer to the $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ from pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure \ref{fig:baselinedata}. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
-\begin{figure}[h]
+\begin{figure*}[h]
         \center{\includegraphics[width=85mm]{../img/usbh_data_2.png}}
         \caption{\label{fig:baselinedata} Baseline three-dimensional extraction data gained from a video segment containing 5 moving ants. The vertical axis denotes the frame number and the horizontal axes denote $d_{1}$ and $d_{2}$ spatial coordinates, respectively, of pixels within a given frame. Markers are colored by position for ease of viewing.}
-\end{figure}
+\end{figure*}
 Inference performed on the time dependent Dirichlet process mixture model (described in the following sections) carries out clustering of the data, which allows each worm-like data cloud to be isolated and independent objects to be localized and tracked.
 
 
