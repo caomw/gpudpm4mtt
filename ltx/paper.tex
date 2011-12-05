@@ -266,27 +266,14 @@ The GPUDDPM, when applied to data over T discrete time steps, can be viewed as a
 
 A transition kernel $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ specifies how mixture component parameters in time step $t$ are dependent upon associated mixture component parameters in time step $t-1$. One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ (note that the transition kernel is a markov chain). 
 
-
-\willie{Do i really want to describe alternate deletion model, as below?? shouldn't i start with usual deletion first..and introduce alternate deletion in implementation section when i do MCMC...A: no, i do not.}
-
-Recall that the distribution over the cluster assignments $c_{i}$ (one for each observation $i$) is a function of the cluster sizes (see \eqref{crp_rep}). Hence, to account for varying numbers of clusters--and in particular, to allow clusters to diminish the number of assigned observations and even die--there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered `removed' from their assigned clusters at a given time step and value of $m_{k}$ (defined in \eqref{crp_rep} to be the size of cluster $k$) is reduced.
+Recall that the distribution over the cluster assignments $c_{i}$ (one for each observation $i$) is a function of the cluster sizes (see \eqref{crp_rep}). Hence, to account for varying numbers of clusters--and in particular, to allow clusters to diminish in size (i.e. reduce the number of assigned observations) and even die--there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered `removed' from their assigned clusters at a given time step and value of $m_{k}$ (defined in \eqref{crp_rep} to be the size of cluster $k$) is reduced.
 
 The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each (remaining) assignment is `removed' from its cluster with probability $\rho$. We can consider the size $m_{k,t}$ of cluster $k$ at time $t$ to be dependent upon the cluster size at time $t-1$ via a deletion step. In fact, it can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the cluster size $m_{k,t}$ by $r$. This can be written as 
 \begin{equation}
 \label{del_step}
 m_{k,t} | m_{k,t-1}   \sim   m_{k,t-1}-\text{Binomial}(m_{k,t-1}, \rho)
 \end{equation}
-% We introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
-% \begin{equation}
-% \label{compute_clust_size}
-% m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
-% \end{equation}
-% where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $x_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
-% \begin{equation}
-% \label{del_rho_form}
-% l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
-% \end{equation} \\
-with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented \cite{caron_2007}. For a given time $t$ and cluster $k$, the size $m_{k,t}$ is dependent upon the cluster size at the previous time step (via \eqref{del_step}) and on the assignments for observations at time $t$ ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). We refer to this distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL. Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$, and each observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$
+with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented \cite{caron_2007}. For a given time $t$ and cluster $k$, the size $m_{k,t}$ is dependent upon the cluster size at the previous time step (via \eqref{del_step}) and on the assignments for observations at time $t$ ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). We refer to this distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL. Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$ and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
 			% \begin{align}
 			% \begin{split}
 			% 	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
@@ -301,12 +288,12 @@ with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} c
 			% \end{align}
 \begin{align}
 \begin{split}
-	\bold{x}_{t}^{i} | c_{t}^{i}, \theta_{c_{t}^{i}, t} &\sim F(\theta_{c_{t}^{i}, t}) \\
-	c_{t}^{i} | m_{c_{t}^{i}, t-1}, \alpha  &\sim  \text{CRP}(m_{c_{t}^{i}, t-1}, \alpha) \\
-	m_{c_{t-1}^{i}, t-1} | m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}, \rho  &\sim \text{DEL}(m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}, \rho) \\
-	\theta_{k, t} | \theta_{k, t-1}   &\sim 
+	\bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t}) \\
+	c_{i} | \bold{m}_{i-1}, \alpha  &\sim  \text{CRP}(\bold{m}_{i-1}, \alpha) \\
+	\bold{m}_{1} | \bold{m}_{N_{t-1}}, \rho  &\sim \text{DEL}(\bold{m}_{N_{t-1}}, \rho) \\
+	\theta_{t} | \theta_{t-1}   &\sim 
 \begin{cases}
-	P(\theta_{k, t} | \theta_{k, t-1}) \\
+	P(\theta_{t} | \theta_{t-1}) \\
 	\mathbb{G}_{0}
 \end{cases}
 \end{split}
@@ -470,16 +457,26 @@ where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are 
 
 This section provides background on the inference procedure applied to the model and extraction data, which allows for unsupervised detection and tracking of objects. A Markov Chain Monte Carlo (MCMC) sampler is used to perform inference, which makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
-The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpudpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. The MCMC sampler described in this section operates in this alternate representation, which we can formulate as
+The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpudpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. In particular, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
+\begin{equation}
+\label{compute_clust_size}
+m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
+\end{equation}
+where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $x_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
+\begin{equation}
+\label{del_rho_form}
+l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
+\end{equation}
+The MCMC sampler described in this section operates in this alternate representation, which we can formulate as, for each time step $t \in \{1, \ldots, T\}$ and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
 \begin{align}
 \begin{split}
-	 \bold{x}_{i} | c_{i}, \theta_{c_{i}} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i}}, \Sigma_{c_{i}})  \mathcal{M}n(\bold{p}_{c_{i}}) \\
+	 \bold{x}_{i} | c_{i}, \theta_{c_{i},t} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i},t}, \Sigma_{c_{i},t})  \mathcal{M}n(\bold{p}_{c_{i},t}) \\
 	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
 	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1\\
-	\theta_{k, t} | \theta_{k, t-1} \willie{other-prior-params}  &\sim 
+	\theta_{k, t} | \theta_{k, t-1}, \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0}  &\sim 
 \begin{cases}
 	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
-	\mathbb{G}_{0}(\willie{prior params})  \hspace{15pt} \text{if } k = K_{t-1} + 1
+	\mathbb{G}_{0}(\boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0})  \hspace{15pt} \text{if } k = K_{t-1} + 1
 \end{cases}
 \end{split}
 \end{align}
@@ -508,11 +505,6 @@ p(c_{t}^{i} = k | rest) \propto \prod_{t' = t}^{d_{t}^{i}} P(c_{t'}^{i} | m_{t'}
 where the distribution under the product $P(c_{t'}^{i} | m_{t'}^{i-1}, c_{1:t'-1})$ is given in, and is taken under the situation where $c = k$, ie etc
 
 
-
-\subsubsection{Sampling Deletion Variables $d_{i}$}
-
-
-
 \subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
 \begin{equation}
 P(x_{t}^{i} | \theta_{k,t})  P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) = \newline
@@ -520,8 +512,17 @@ P(x_{t}^{i} | \theta_{k,t})  P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z
 \end{equation}
 
 
+\subsubsection{Metropolis Hastings Algorithm}
+
 
 \subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
+
+
+\subsubsection{Sampling Deletion Variables $d_{i}$}
+
+
+
+
 
 
 
