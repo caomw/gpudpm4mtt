@@ -168,11 +168,11 @@ The following sections are intended to provide a solid introduction to DPMs with
 
 \subsubsection{Finite Mixture Model}
 
-A finite mixture model can be thought of as a probability distribution for an observation $x_{i}$ formulated as a linear combination of K mixture components (where the coefficients of the linear combination sum to one); each mixture component, in turn, is a probability distribution for $x_{i}$, given some parametric form. The finite mixture model can be written as
+A finite mixture model can be thought of as a probability distribution for an observation $x_{i}$ formulated as a linear combination of K mixture components (also called `clusters'), where the coefficients of the linear combination sum to one; each mixture component, in turn, is a probability distribution for $x_{i}$, given some parametric form. The finite mixture model can be written as
 \begin{equation}
 P(x) = \sum_{k=1}^{K} P(c_{i} = k)P(x|\theta_{k})
 \end{equation}
-where $c_{i} \in \{ 1, \ldots, K \}$ denotes the assignment of $x_{i}$ to a given mixture, which allows the coefficients of the linear combination to be written as $P(c_{i} = k)$. Additionally, $\theta_{k}$ denotes the parametric form of the $k^{\text{th}}$ mixture component. We also define $p_{k} = P(c_{i} = k)$ for all $k \in \{ 1, \ldots, K \} $. This model can also be written hierarchically as
+where $c_{i} \in \{ 1, \ldots, K \}$ denotes the assignment of $x_{i}$ to a given mixture, which allows the coefficients of the linear combination to be written as $P(c_{i} = k)$. Additionally, $\theta_{k}$ denotes the parametric form of the $k^{\text{th}}$ mixture component. We also define $p_{k} = P(c_{i} = k)$ for all $k \in \{ 1, \ldots, K \} $. This model can also be written generatively as
 \begin{align}
 \begin{split}
 	x_{i}|c_{i}, \theta_{c_{i}}  &\sim  F(\theta_{c_{i}}) \\
@@ -223,9 +223,7 @@ Hence, the expectation of $G(A)$ is $\mathbb{G}_{0}$, the variance of $G(A) \rig
 \subsubsection{Dirichlet Process (Infinite) Mixture Model}
 
 A Dirichlet process mixture model, also refered to as an infinite mixture model, is an extension of the Bayesian mixture model described previously. 
-When using a DP as a prior in a Bayesian mixture model, $\Theta$ can be viewed as the set of parameters of the component mixture distributions.
-%
-A DPM is formulated by allowing the prior mixing distribution \willie{(the distribution over component weights?)} in a standard mixture model to be distributed according to a DP; this allows for modeling data where the true number of latent mixture components is unknown and arbitrarily large by assuming an infinite number of components, of which only a finite amount are expressed by the data. In particular, the DPM can be defined hierarchically as
+When using a DP as a prior in a Bayesian mixture model, $\Theta$ can be viewed as the set of parameters of the component mixture distributions. 	A DPM is formulated by allowing the prior distribution over component weights in a standard mixture model to be distributed according to a DP \willie{need to make sure am saying this right}; this allows for modeling data where the true number of latent mixture components is unknown and arbitrarily large by assuming an infinite number of components, of which only a finite amount are expressed by the data. In particular, the DPM can be defined generatively as
 \begin{align}
 \begin{split}
 	x_{i}|\phi_{i} &\sim F(\phi_{i}) \\
@@ -238,6 +236,7 @@ where the $x_{i}$ (for $i \in \{ 1, \ldots, N \}$) are observations, the $\phi_{
 An alternative formultion of the DPM is known as the Chinese resturant process (CRP) sampling representation. If we let $K$ be the number of distinct mixture components in the above model, we can write the distinct mixture components as $\theta_{1}, \ldots, \theta_{K}$. Let $c_{1}, \ldots, c_{N}$ (where $c_{i} \in \{1, \ldots, K \}$) be class assignment variables that indicate the cluster to which observation $x_{i}$ is assigned. This allows the DPM to be represented by the CRP, a discrete-time stochastic process that defines a partition of the set $\{ x_{1}, \ldots, x_{N} \}$ (via the elements' assignments $c_{1}, \ldots, c_{N}$). The CRP allows samples to be drawn from the conditional distribution of the indictor variables $c_{i}$, and can be expressed as
 \begin{align}
 \begin{split}
+\label{crp_rep}
 	P(c_{i} = c_{j} \text{  for some  } j<i) &= \frac{m_{k}}{i-1+\alpha}\\
 	P(c_{i} \neq c_{j} \text{  for all  } j<i) &= \frac{\alpha}{i-1+\alpha}
 \end{split}
@@ -261,38 +260,50 @@ More rigorously, we take the definition of a DDPM to be a stochastic process def
 \subsubsection{Generalized Polya Urn Dependent Dirichlet Process Mixture}
 \label{sec:gpudpm}
 
-Data gained by performing extraction on videos containing objects is significantly time-dependent. Futhermore, the clusters of data, each of which represents an object in the video, might change in number as time progresses, since objects can enter and exit a scene. The specific DDPM used to model extraction data in this work while handling the above challenges is known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), and was introduced by \cite{caron_2007} in 2006. 
+Data gained by performing extraction on videos containing objects is significantly time-dependent. Futhermore, the clusters of data, each representing a video object, might change in number as time progresses (which is to say, clusters may get `born' and may `die' at some intermediate time step), since objects can enter and exit a scene. To handle these challenges, the specific DDPM chosen to model extraction data in this work is known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), introduced by \cite{caron_2007} in 2006.
 
-The GPUDDPM, when applied to data over T discrete time steps, can be viewed as a collection of DPMMs (one for each $t \in \{1, \ldots, T \}$), which are linked together by dependencies among their respective parameters. For example, the mixture component parameters at a given time step are dependent upon the mixture component parameters in adjacent time steps and the distribution and number of distinct cluster assignments at a given time step are dependent upon the same over a wider range of time steps, upon the distribution of observations' cluster assignments over this range, and upon a deletion procedure, described below.
+The GPUDDPM, when applied to data over T discrete time steps, can be viewed as a sequence of DPMs (one for each $t \in \{1, \ldots, T \}$), which are linked together by dependencies between cluster parameters in neighboring time steps. More specifically, the parameters at a given time step are distributed as a function of the parameters in the previous time step, and the distribution and number of distinct cluster assignments at a given time step are distributed according to all previous cluster assignments and a deletion procedure, described below.
 
-To link together the parameters of mixture components in adjacent time-steps, a transition kernel $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ is implemented, which provides a distribution over parameters of a mixture component in a given time-step (as a function of equivalent parameters in adjacent time-steps). One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ (note that the transition kernel is a markov chain). Additionally, to account for varying numbers of clusters, there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered "removed" from their assigned clusters at a given time-step (which modifies the value of $m_{k}$ defined above in the CRP representation). We introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
+A transition kernel $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ specifies how mixture component parameters in time step $t$ are dependent upon associated mixture component parameters in time step $t-1$. One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ (note that the transition kernel is a markov chain). 
+
+
+\willie{Do i really want to describe alternate deletion model, as below?? shouldn't i start with usual deletion first..and introduce alternate deletion in implementation section when i do MCMC...A: no, i do not.}
+
+Recall that the distribution over the cluster assignments $c_{i}$ (one for each observation $i$) is a function of the cluster sizes (see \eqref{crp_rep}). Hence, to account for varying numbers of clusters--and in particular, to allow clusters to diminish the number of assigned observations and even die--there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered `removed' from their assigned clusters at a given time step and value of $m_{k}$ (defined in \eqref{crp_rep} to be the size of cluster $k$) is reduced.
+
+The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each (remaining) assignment is `removed' from its cluster with probability $\rho$. We can consider the size $m_{k,t}$ of cluster $k$ at time $t$ to be dependent upon the cluster size at time $t-1$ via a deletion step. In fact, it can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the cluster size $m_{k,t}$ by $r$. This can be written as 
 \begin{equation}
-m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
+\label{del_step}
+m_{k,t} | m_{k,t-1}   \sim   m_{k,t-1}-\text{Binomial}(m_{k,t-1}, \rho)
 \end{equation}
-where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $x_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
-\begin{equation}
-l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
-\end{equation} \\
-with parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented.
-
-Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t = \{1, \ldots, T\}$
-% \begin{align}
-% \begin{split}
-% 	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
-% 	c_{i}^{(t)} | m^{(t-1)}, \alpha  &\sim  \text{CRP}(m^{(t-1)}, \alpha) \\
-% 	m^{(t-1)} | m^{(t-2)}, c_{i}^{(t-1)}  &\sim \text{DEL}(m^{(t-2)}, c_{i}^{(t-1)}, \rho, \gamma) \\
-% 	\theta_{k}^{(t)} | \theta_{k}^{(t-1)}   &\sim 
-% \begin{cases}
-% 	P(\theta_{k}^{(t)} | \theta_{k}^{(t-1)}) \\
-% 	\mathbb{G}_{0}
-% \end{cases}
-% \end{split}
-% \end{align}
+% We introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
+% \begin{equation}
+% \label{compute_clust_size}
+% m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
+% \end{equation}
+% where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $x_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
+% \begin{equation}
+% \label{del_rho_form}
+% l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
+% \end{equation} \\
+with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented \cite{caron_2007}. For a given time $t$ and cluster $k$, the size $m_{k,t}$ is dependent upon the cluster size at the previous time step (via \eqref{del_step}) and on the assignments for observations at time $t$ ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). We refer to this distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL. Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$, and each observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$
+			% \begin{align}
+			% \begin{split}
+			% 	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
+			% 	c_{i}^{(t)} | m^{(t-1)}, \alpha  &\sim  \text{CRP}(m^{(t-1)}, \alpha) \\
+			% 	m^{(t-1)} | m^{(t-2)}, c_{i}^{(t-1)}  &\sim \text{DEL}(m^{(t-2)}, c_{i}^{(t-1)}, \rho, \gamma) \\
+			% 	\theta_{k}^{(t)} | \theta_{k}^{(t-1)}   &\sim 
+			% \begin{cases}
+			% 	P(\theta_{k}^{(t)} | \theta_{k}^{(t-1)}) \\
+			% 	\mathbb{G}_{0}
+			% \end{cases}
+			% \end{split}
+			% \end{align}
 \begin{align}
 \begin{split}
 	\bold{x}_{t}^{i} | c_{t}^{i}, \theta_{c_{t}^{i}, t} &\sim F(\theta_{c_{t}^{i}, t}) \\
 	c_{t}^{i} | m_{c_{t}^{i}, t-1}, \alpha  &\sim  \text{CRP}(m_{c_{t}^{i}, t-1}, \alpha) \\
-	m_{c_{t-1}^{i}, t-1} | m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}  &\sim \text{DEL}(m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}, \rho, \gamma) \\
+	m_{c_{t-1}^{i}, t-1} | m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}, \rho  &\sim \text{DEL}(m_{c_{t-1}^{i}, t-2}, c_{t-1}^{i}, \rho) \\
 	\theta_{k, t} | \theta_{k, t-1}   &\sim 
 \begin{cases}
 	P(\theta_{k, t} | \theta_{k, t-1}) \\
@@ -300,15 +311,12 @@ Using the cluster size and observation deletion terms introduced above, we can d
 \end{cases}
 \end{split}
 \end{align}
-
-The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
+where $\text{CRP}(\cdot, \cdot)$ is given in \eqref{crp_rep}. The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
 
 \begin{figure}[h]
-        \center{\includegraphics[width=100mm]{../img/gpuddp_gm_1.pdf}}
+        \center{\includegraphics[width=90mm]{../img/gpuddp_gm_1.pdf}}
         \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
 \end{figure}
-
-
 
 
 
@@ -319,11 +327,9 @@ The graphical model corresponding with this formulation is shown in Figure \ref{
 We would like make explicit the connection between certain elements of the GPUDDPM model and the characteristics of objects in vidoes that these elements represent.
 
 First, the appearances of objects are moded by what we term the `likelihood and object appearance model', which we denoted by $F$. In the above modeling formulation, $F$ is the probability distribution for an observation, given that it is assigned to specified cluster (i.e. given that it is associated with a given object in a video). The likelihood and object appearance model is therefore
-
 \begin{equation}
 F(\theta_{c_{i}}) = P(x_{i}|\theta_{c_{i}})
 \end{equation}
-
 where $x_{i}$ is an observation, $c_{i}$ is its associated assignment, $\theta_{c_{i}}$ specifies the parameters of the parametric form of the $c_{i}^{th}$ cluster. The specific form of this model is dependent upon the observations $x_{i}$; recall that the observations, which as a baseline include spatial and temporal features, could include an arbitrary amount of additional features which need to be incorporated into this appearance model. A specific formulation of the appearance model can be seen in the proceeding section.
 
 Object behavior is modeled by the dependencies between corresponding clusters at adjacent time steps. In particular, this relationship is captured by the transition kernel, $P(\theta_{k}^{t} | \theta_{k}^{t-1})$ (which captures the dependence of cluster $k$ at time $t$ on the same cluster at time $t-1$), described previously. The motion behavior of an object, i.e. the specific dependence of the parameters of cluster $k$ at a time $t$ on its parameters at time $t-1$, is therefore
@@ -332,8 +338,6 @@ Tr(\theta_{k, t} | \theta_{k, t-1}) = P(\theta_{k, t} | \theta_{k, t-1})
 \end{equation}
 
 Additionally, the base distribution $\mathbb{G}_{0}$ of the DP acts as a prior on the cluster parameters. This allows one to place a prior probability over appearances of objects. It is important that this prior is not chosen in such a specific manner that it limits this method from performing unsupervised detection of arbitrary objects.
-
-
 
 
 
@@ -486,18 +490,36 @@ where TK stands for the transition kernel, given in \eqref{transker1} and \eqref
 \end{figure}
 
 
-
 We define the state of the sampler to consist of the assignment variables for all observations, $c_{1}, \ldots, c_{N}$, the deletion variables for all observations, $d_{1}, \dots, d_{N}$, the sequence of cluster parameters for each active cluster $k$, $\theta_{k,1}, \ldots, \theta_{k, T}$, and the $M$ associated auxiliary variables for each cluster $\theta_{k,t}$, $z_{k,t,1}, \ldots, z_{k, t, M}$ (where $N$ denotes the number of observations and $T$ denotes the number of time steps).
 
 The sampler operates by iteratively sampling each member of the state given all other members. In particular, it moves sequentially through each of the $N$ observations, sampling the assignment $c_{i}$ and the deletion variable $d_{i}$ at each step. After the final observation at a given time $t$ step is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. The following sections detail how each sample is generated will be explicitely shown in the following sections.
 
 
 \subsubsection{Sampling Assignment Variables $c_{i}$}
-The assignment of each observation, $c_{i}$, given all other members of the state, 
+
+A value proportional to the posterior distribution can be computed for each possile value that $c_{i}$ may take on, i.e. for the posterior probability that $c_{i} = k \in \{ 1 , \ldots ,  K_{t}^{\text{possible}}, k^{*}\}$, where $K_{t}^{\text{possible}}$ is the number clusters with a non-zero size at any time between $t$ and $d_{t}^{i}$, and $k^{*}$ is a potential new cluster. The probably that $c_{i}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{\text{possible}}, k^{*} \}$ given all other members of the state, with
+\begin{equation}
+p(c_{t}^{i} = k | rest) \propto \prod_{t' = t}^{d_{t}^{i}} P(c_{t'}^{i} | m_{t'}^{i-1}, c_{1:t'-1}) \newline \times
+\begin{cases}
+	P(\bold{x}_{t}^{i} | \theta_{k,t})                                    \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{\text{possible}} \} \\
+	\int P(\bold{x}_{t}^{i} | \theta) * \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
+\end{cases}
+\end{equation}
+where the distribution under the product $P(c_{t'}^{i} | m_{t'}^{i-1}, c_{1:t'-1})$ is given in, and is taken under the situation where $c = k$, ie etc
+
+
 
 \subsubsection{Sampling Deletion Variables $d_{i}$}
 
+
+
 \subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
+\begin{equation}
+P(x_{t}^{i} | \theta_{k,t})  P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) = \newline
+\text{normal inverse wishart dirichlet with updated params...put here in addition to previous, or all only at previous and cite that?}
+\end{equation}
+
+
 
 \subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
 
@@ -557,6 +579,7 @@ The two metrics used to quantify performance in this study are known as the the 
 
 The following terms are used in the definitions of the performance metrics:
 \begin{itemize}
+\renewcommand{\labelitemi}{$\bullet$}
 \item $G_{i}$ denotes the spatiotemporal region occupied by the $i$th ground-truth object in a video, and $G_{i}^{(t)}$ denotes the region occupied by the $i$th ground-truth object in frame $t$.
 \item $D_{i}$ denotes the spatiotemporal region occupied by the $i$th detected object in a video, and $D_{i}^{(t)}$ denotes the region occupied by the $i$th detected object in frame $t$.
 \item $N_{G}$ denotes the total number of unique ground-truth objects in a video, and $N_{G}^{(t)}$ denotes the number of unique ground-truth objects present at frame $t$.
@@ -741,15 +764,16 @@ The Caviar datasets used in PETS2004 consist of multiple test-case-scenarios inv
 
 \subsection{Nonstandard Video Datasets}
 
-\subsubsection{Ants Videos}
+\subsubsection{Ants Video?}
 
-\subsubsection{}
+\subsubsection{Cells Video?}
 
 
 
 
 \section*{Results and Discussion}
 
+Discuss parameters somewhere in here. to add in discussion: thoughts about: deletion param vs. dataset size (and tracking through occlusion vs clusters taking over), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects.  we detect movement, which isn’t exactly same as perf. metrics (ie our tracking stops if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
 
 
 
