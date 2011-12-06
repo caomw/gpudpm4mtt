@@ -22,9 +22,7 @@
 \DeclareMathOperator*{\argmax}{arg\,max}
 
 
-
 \begin{document}
-
 
 \title{Unsupervised Detection and Tracking of Multiple Objects with Dependent Dirichlet Process Mixtures}
 \author{Willie Neiswanger and Frank Wood}
@@ -145,14 +143,14 @@ This section provides details on the data to be modeled, the Dirichlet process m
 %
 We defined the task of extraction to be the unsupervised determination of which spatiotemporal regions of a video constitute objects, and outlined a number of extraction methods in Section~\ref{sec:relatedwork}. The features of the data are characteristics of pixels in the regions of the video that contain objects, and the data are gained during extraction. For example, at its most basic, an extraction dataset is comprised of the three-dimensional points $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$, where $x_{1}$ and $x_{2}$ are the two spatial dimensions of a pixel contained in a region representing an object in a given frame, and $t$ is the discrete time index of the frame. These three features are always available once regions containing objects are discerned, and are necessary features for modeling (as position information is key for reasonable tracking and time information is necessary for maintaining the temporal dependencies in the data).
 
-Examples of additional features that could potentially be extracted from object-regions in video frames include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform calculations (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and can be represented by distributions that allow for tractable inference (discussed further in Section~\ref{sec:inference_spec}).
+Examples of additional features that could potentially be extracted from object-regions in video frames include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform calculations (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and can be represented by distributions that allow for tractable inference (discussed further in Section~\ref{sec:inference}).
 
 We will use the phrase `baseline' three-dimensional extraction data to refer to the $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ from pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number $t$, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure~\ref{fig:baselinedata}. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
 \begin{figure*}[h]
         \center{\includegraphics[width=85mm]{../img/usbh_data_2.png}}
         \caption{\label{fig:baselinedata} Baseline three-dimensional extraction data gained from a video segment containing 5 moving ants. The vertical axis denotes the frame number and the horizontal axes denote $d_{1}$ and $d_{2}$, the spatial coordinates of pixels within a given frame. Markers are colored by position for ease of viewing.}
 \end{figure*}
-Inference performed on the time dependent Dirichlet process mixture model (described in Section~\ref{sec:inference_spec}) carries out clustering of the data, which isolates each worm-like data cloud and allows each object to be localized and tracked.
+Inference performed on the time dependent Dirichlet process mixture model (Section~\ref{sec:inference}) carries out clustering of the data, which isolates each worm-like data cloud and allows each object to be localized and tracked.
 
 
 
@@ -332,7 +330,7 @@ Additionally, the base distribution $\mathbb{G}_{0}$ of the DP acts as a prior o
 
 
 
-\section{Model Specification and Inference}
+\section{Model Specification}
 \label{sec:modelspec}
 
 In the following sections, a particular extraction method for generating data from videos and a specific formulation of the model described in Section~\ref{sec:modeloverview} are given. Inference schemes on this model, which when carried out allow for unsupervised detection and tracking of multiple arbitrary objects, are also described.
@@ -452,10 +450,14 @@ where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are 
 
 
 
-\subsection{Inference Implementation in Experiments}
-\label{sec:inference_spec}
+\section{Inference}
+\label{sec:inference}
+Algorithms that infer latent model parameters in a Bayesian manner given the data gained during extraction provide detection and tracking results. By formulating the detection and tracking task in terms of a generative model, a variety of methods previously developed for statistical inference can be readily applied; we separate presentations of model and inference so that multiple inference methods, each with its own benefits in terms of precision and speed, can be formulated and applied independently to gain detection and tracking results. This section provides background on the two inference procedures implemented in this study, used to perform Bayesian inference on the model described in Section~\ref{sec:modelspec}. The first is a type of Markov Chain Monte Carlo (MCMC) batch inference, which uses Gibbs sampling to generate samples from a posterior distribution over a model, and the second is a type of Sequential Monte Carlo (SMC) inference, also known as a particle filter, which also generates samples from a posterior information, but in this case in a sequential manner that is allowed due to the time-dependent nature of the model.
 
-This section provides background on the inference procedure applied to the model and extraction data, which allows for unsupervised detection and tracking of objects. A Markov Chain Monte Carlo (MCMC) sampler is used to perform inference, which makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
+
+\subsection{MCMC Batch Inference}
+
+This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which provides another method to carry out unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution--i.e. implementing Gibbs sampling--in order to approximate the posterior distribution of the cluster parameters given the data.    used to perform inference, which makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
 The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpudpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. In particular, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
 \begin{equation}
@@ -467,7 +469,7 @@ where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its ar
 \label{del_rho_form}
 l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
 \end{equation}
-The MCMC sampler described in this section operates in this alternate representation, which we can formulate as, for each time step $t \in \{1, \ldots, T\}$ and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
+The MCMC sampler described in this section operates in this alternate representation, which we can formulate, for each time step $t \in \{1, \ldots, T\}$ and observation $i \in \{ 1, \ldots, N_{t} \}$ at time $t$, as
 \begin{align}
 \begin{split}
 	 \bold{x}_{i} | c_{i}, \theta_{c_{i},t} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i},t}, \Sigma_{c_{i},t})  \mathcal{M}n(\bold{p}_{c_{i},t}) \\
@@ -489,36 +491,63 @@ where TK stands for the transition kernel, given in \eqref{transker1} and \eqref
 
 We define the state of the sampler to consist of the assignment variables for all observations, $c_{1}, \ldots, c_{N}$, the deletion variables for all observations, $d_{1}, \dots, d_{N}$, the sequence of cluster parameters for each active cluster $k$, $\theta_{k,1}, \ldots, \theta_{k, T}$, and the $M$ associated auxiliary variables for each cluster $\theta_{k,t}$, $z_{k,t,1}, \ldots, z_{k, t, M}$ (where $N$ denotes the number of observations and $T$ denotes the number of time steps).
 
-The sampler operates by iteratively sampling each member of the state given all other members. In particular, it moves sequentially through each of the $N$ observations, sampling the assignment $c_{i}$ and the deletion variable $d_{i}$ at each step. After the final observation at a given time $t$ step is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. The following sections detail how each sample is generated will be explicitely shown in the following sections.
+The sampler performs Gibbs sampling; it operates by iteratively sampling each member of the state given all other members. In particular, it moves sequentially through each of the $N$ observations, sampling the assignment $c_{i}$ and the deletion variable $d_{i}$ at each step. After the final observation at a given time $t$ step is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. The following sections detail how each sample is generated will be explicitely shown in the following sections.
+
 
 
 \subsubsection{Sampling Assignment Variables $c_{i}$}
 
-A value proportional to the posterior distribution can be computed for each possile value that $c_{i}$ may take on, i.e. for the posterior probability that $c_{i} = k \in \{ 1 , \ldots ,  K_{t}^{\text{possible}}, k^{*}\}$, where $K_{t}^{\text{possible}}$ is the number clusters with a non-zero size at any time between $t$ and $d_{t}^{i}$, and $k^{*}$ is a potential new cluster. The probably that $c_{i}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{\text{possible}}, k^{*} \}$ given all other members of the state, with
+A value proportional to the posterior probability can be computed for each possible value that $c_{i}$ may take on; these values allow us to construct a discrete probability distribution that may be sampled from to get a posterior assignment sample. The possible values that the assignment may take on are $c_{i} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between observation $i$ and its deletion point $d_{i}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
 \begin{equation}
-p(c_{t}^{i} = k | rest) \propto \prod_{t' = t}^{d_{t}^{i}} P(c_{t'}^{i} | m_{t'}^{i-1}, c_{1:t'-1}) \newline \times
+p(c_{i} = k | state) \propto \prod_{i' = i}^{d_{i}} P(c_{i'} | m_{i'-1}, c_{1:i'-1}) \newline \times
 \begin{cases}
-	P(\bold{x}_{t}^{i} | \theta_{k,t})                                    \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{\text{possible}} \} \\
-	\int P(\bold{x}_{t}^{i} | \theta) * \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
+	P(\bold{x}_{i} | \theta_{k,t})                                        \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
+	\int P(\bold{x}_{i} | \theta) * \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
 \end{cases}
 \end{equation}
-where the distribution under the product $P(c_{t'}^{i} | m_{t'}^{i-1}, c_{1:t'-1})$ is given in, and is taken under the situation where $c = k$, ie etc
+\willie{$d_{i}$ is actually a time; product needs to actually go up to last observation at time $d_{i}$} where the distribution under the product $P(c_{i'} | m_{i'-1}, c_{1:i'-1})$ is given in, and is taken under the situation where $c = k$, ie etc
 
 
 \subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
-\begin{equation}
-P(x_{t}^{i} | \theta_{k,t})  P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) = \newline
-\text{normal inverse wishart dirichlet with updated params...put here in addition to previous, or all only at previous and cite that?}
-\end{equation}
+The conjugacy present in chosen distributions and auxiliary variables in the transition kernel allow for posterior samples of the cluster parameters to be easily gained, and gives us
+% \begin{eqnarray}
+% P(\theta_{k,t} | state) && = P(\bold{x}_{i} | \theta_{k,t}) P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) \\
+%  && = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
+% \end{eqnarray}
+\begin{align}
+\begin{split}
+P(\theta_{k,t} | state) & = P(\bold{x}_{i} | \theta_{k,t}) P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) \\
+ & = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{k,t}, \Sigma_{k,t} | \boldsymbol{\mu}_{N}, k_{N}, v_{N}, \Lambda_{N})  \mathcal{D}ir( \bold{p}_{k,t} | \bold{q}_{N})
+\end{split}
+\end{align}
+Where the parameters in the above distribution are given when the data at time $t$, auxiliary variables $z_{k,t-1,1:M}$ at time $t-1$, and auxiliary variables $z_{k,t,1:M}$ at time $t$, are taken to be the observations in the following Bayesian updates
+\begin{eqnarray}
+Bayesian updates
+\end{eqnarray}
 
-
-\subsubsection{Metropolis Hastings Algorithm}
-
+% \subsubsection{Metropolis-Hastings Algorithm}
 
 \subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
+The Metropolis-Hastings algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves construction of a markov chain with the desired 
 
 
 \subsubsection{Sampling Deletion Variables $d_{i}$}
+
+
+
+
+\subsection{SMC Inference}
+
+This section details a Sequential Monte Carlo (SMC) sampler--also known as a particle filter--used to perform inference, which provides another method to carry out unsupervised detection and tracking. \willie{general overview here: at each time step, perform sampling, and then show algorithm figure / thing}
+
+
+\subsubsection{Proposal Distribution for Assignments $c_{i}$}
+
+
+\subsubsection{Proposal Distribution $q_{1}$}
+
+
+\subsubsection{Proposal Distribution $q_{2}$}
 
 
 
@@ -725,7 +754,7 @@ The PETS2000 dataset consists of
 
 \subsubsection{PETS2009/2010}
 
-The PETS2009/2010 dataset consists of a 900 frame video.
+The PETS2009/2010 dataset consists of a 900 frame video. \willie{describe which camera, sequence and view number, look at ferryman? intro paper and performance benchmark paper for good descriptions}
 
 \begin{figure}
   \centering             
@@ -749,21 +778,24 @@ The PETS2009/2010 dataset consists of a 900 frame video.
 
 
 
-\subsubsection{PETS2004/Caviar Datasets}
 
-The Caviar datasets used in PETS2004 consist of multiple test-case-scenarios involving one or more humans.
-
-
-\begin{figure}
-	\centering
-	\includegraphics[width=3in]{../img/pets2004_results_1}
-	\caption{Sample from posterior of the mean for frames $f = 1-20$ overlaid on frame $f=20$.}
-	\label{fig:pets2009_results}
-\end{figure}
+\subsubsection{Sensitivity Analysis}
 
 
+% \subsubsection{PETS2004/Caviar Datasets}
+% The Caviar datasets used in PETS2004 consist of multiple test-case-scenarios involving one or more humans.
+% \begin{figure}
+% 	\centering
+% 	\includegraphics[width=3in]{../img/pets2004_results_1}
+% 	\caption{Sample from posterior of the mean for frames $f = 1-20$ overlaid on frame $f=20$.}
+% 	\label{fig:pets2009_results}
+% \end{figure}
 
-\subsection{Nonstandard Video Datasets}
+
+
+\subsection{New Video Datasets}
+
+The two video datasets in this section are video datasets first used in this paper. The datasets and groundtruth detailing the positions of each obect in each video will be published online.
 
 \subsubsection{Ants Video?}
 
