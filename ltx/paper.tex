@@ -446,7 +446,7 @@ To satisfy the above criteria for auxiliary variables, at each time $t$ we speci
 \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} | \bold{z}_t  \sim  \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M})  \mathcal{D}ir(\bold{q}_{M})
 \end{equation}
 where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are parameters given by:
-\willie{ran out of time. need to type up updates here.}
+\willie{these are given in next section, need to consider if I actually want to repeat them here}
 
 
 
@@ -457,7 +457,7 @@ Algorithms that infer latent model parameters in a Bayesian manner given the dat
 
 \subsection{MCMC Batch Inference}
 
-This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which provides another method to carry out unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution--i.e. implementing Gibbs sampling--in order to approximate the posterior distribution of the cluster parameters given the data.    used to perform inference, which makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
+This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which provides a method to carry out unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution--i.e. it implements Gibbs sampling--in order to gain approximate samples from the posterior distribution of the cluster parameters given the data. Additionally, this sampler makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
 The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpudpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. In particular, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
 \begin{equation}
@@ -485,7 +485,7 @@ The MCMC sampler described in this section operates in this alternate representa
 where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in \ref{fig:gpuddpm_gm_2}.
 \begin{figure}[h]
         \center{\includegraphics[width=100mm]{../img/gpuddp_gm_3.pdf}}
-        \caption{\label{fig:gpuddpm_gm_2} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
+        \caption{\label{fig:gpuddpm_gm_2} Graphical model of the deletion-variable representation of the GPUDDPM}
 \end{figure}
 
 
@@ -496,6 +496,7 @@ The sampler performs Gibbs sampling; it operates by iteratively sampling each me
 
 
 \subsubsection{Sampling Assignment Variables $c_{i}$}
+\label{sec:sample_assignments}
 
 A value proportional to the posterior probability can be computed for each possible value that $c_{i}$ may take on; these values allow us to construct a discrete probability distribution that may be sampled from to get a posterior assignment sample. The possible values that the assignment may take on are $c_{i} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between observation $i$ and its deletion point $d_{i}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
 \begin{equation}
@@ -505,7 +506,7 @@ p(c_{i} = k | state) \propto \prod_{i' = i}^{d_{i}} P(c_{i'} | m_{i'-1}, c_{1:i'
 	\int P(\bold{x}_{i} | \theta) * \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
 \end{cases}
 \end{equation}
-\willie{$d_{i}$ is actually a time; product needs to actually go up to last observation at time $d_{i}$} where the distribution under the product $P(c_{i'} | m_{i'-1}, c_{1:i'-1})$ is given in, and is taken under the situation where $c = k$, ie etc
+\willie{$d_{i}$ is actually a time; product needs to actually go up to last observation at time $d_{i}$} where the distribution under the product $P(c_{i'} | m_{i'-1}, c_{1:i'-1})$ is given in, and is taken under the situation where $c = k$. If a new cluster is sampled as an assignment, the cluster parameters and auxiliary variables must be initialized for all time steps. \willie{finish writing the few tricky technical stuff here}
 
 
 \subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
@@ -522,17 +523,52 @@ P(\theta_{k,t} | state) & = P(\bold{x}_{i} | \theta_{k,t}) P(z_{k,t+1,1:M} | \th
 \end{align}
 Where the parameters in the above distribution are given when the data at time $t$, auxiliary variables $z_{k,t-1,1:M}$ at time $t-1$, and auxiliary variables $z_{k,t,1:M}$ at time $t$, are taken to be the observations in the following Bayesian updates
 \begin{eqnarray}
-Bayesian updates
+k_{N} &=& k_{0} + N \\
+v_{N} &=& v_{0} + N \\
+\boldsymbol{\mu}_{N} &=& \frac{k_{0}}{k_{0}+N} \boldsymbol{\mu}_{0}  +  \frac{N}{k_{0}+N} \overline{\bold{x}}^{s}\\
+\Lambda_{N} &=& \Lambda_{0} + S_{\bold{x}^{s}}\\
+\bold{q}_{N} &=& \bold{q}_{0} + \sum_{i=1}^{N} \bold{x}^{c}
+\end{eqnarray}
+where $N$ is the number of observations, $\{ \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{N} \}$ are the $\mathcal{N}i\mathcal{W}$ prior parameters, $\bold{q}_{0}$ is the $\mathcal{D}ir$ prior parameter, $\bold{x}^{s}$ and $\bold{x}^{c}$ respectively denote the spatial and color features of the observations, and $\overline{\bold{x}}$ and $S_{\bold{x}}$ respectively denote the sample mean and sample covariance for a set of observations $\bold{x}$, defined to be
+\begin{eqnarray}
+\overline{\bold{x}}  &=&  \left( \sum_{i=1}^{N} \bold{x}_{i} \right) / N\\
+S_{\bold{x}}  &=&  \sum_{i=1}^{N} (\bold{x}_{i} - \overline{\bold{x}}) (\bold{x}_{i} - \overline{\bold{x}})^{T}
 \end{eqnarray}
 
 % \subsubsection{Metropolis-Hastings Algorithm}
 
 \subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
-The Metropolis-Hastings algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves construction of a markov chain with the desired 
+The posterior distribution of each of the auxiliary variables $z_{k,t,m}$ can be written as
+\begin{equation}
+P(z_{k,t,m} | state) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
+\end{equation}
+This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample.
+
+The M-H algorithm is used to sample auxiliary variables for each alive cluster. In this algorithm, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
+\begin{equation}
+z_{k,t,m}^{*}  \sim  P(z_{k,t,m} | \theta_{k,t}) = \mathcal{N}(z_{k,t,m}^{s} | \boldsymbol{\mu}_{k,t}, \Sigma_{k,t}) \mathcal{M}n(z_{k,t,m}^{c} | \bold{p}_{k,t})
+\end{equation}
+compute the standard M-H acceptance ratio, which in this case (due to the proposal distribution choice) simplifies to 
+\begin{equation}
+r_{accept} = \frac{P(\theta_{k,t-1} | z_{k,t,m}^{*})}{P(\theta_{k,t-1} | z_{k,t,m})}
+\end{equation}
+and keep this sample with probability $min(1, r_{accept})$.
 
 
 \subsubsection{Sampling Deletion Variables $d_{i}$}
+Computing the posterior distribution (or a value proportional to this distribution) for each possible value that a given deletion variable may take on (in a manner similar to how samples from the posterior distribution of the assignment variables $c_{i}$ are gained in Section~\ref{sec:sample_assignments}) may be computationally expensive due to the large number of potential deletion times. To remedy this, the M-H algorithm may again be used to sample from the posterior, where the prior distribution for the deletion times can be used to propose new samples $d_{i}^{*}$. As the `lifetime' of each assignment can be shown to be geometrically distributed, we can propose a new deletion time sample with
+\begin{align}
+\begin{split}
+l_{i}  &\sim  \text{Geo}(\rho)  \\
+d_{i}^{*}  &= l_{i} + t + 1
+\end{split}
+\end{align}
+and accept or reject this sample using the standard M-H acceptance ratio \willie{write computation of ratio}.
 
+
+
+\subsubsection{Initializing the Sampler}
+Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can theoretically be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference.
 
 
 
