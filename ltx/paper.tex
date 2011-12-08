@@ -146,10 +146,22 @@ We defined the task of extraction to be the unsupervised determination of which 
 Examples of additional features that could potentially be extracted from object-regions in video frames include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform calculations (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and can be represented by distributions that allow for tractable inference (discussed further in Section~\ref{sec:inference}).
 
 We will use the phrase `baseline' three-dimensional extraction data to refer to the $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ from pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number $t$, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure~\ref{fig:baselinedata}. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
-\begin{figure*}[h]
-        \center{\includegraphics[width=85mm]{../img/usbh_data_2.png}}
-        \caption{\label{fig:baselinedata} Baseline three-dimensional extraction data gained from a video segment containing 5 moving ants. The vertical axis denotes the frame number and the horizontal axes denote $d_{1}$ and $d_{2}$, the spatial coordinates of pixels within a given frame. Markers are colored by position for ease of viewing.}
-\end{figure*}
+% \begin{figure*}[h]
+%         \center{\includegraphics[width=85mm]{../img/usbh_data_2.png}}
+%         \caption{\label{fig:baselinedata} Baseline three-dimensional extraction data gained from a video segment containing 5 moving ants. The vertical axis denotes the frame number and the horizontal axes denote $d_{1}$ and $d_{2}$, the spatial coordinates of pixels within a given frame. Markers are colored by position for ease of viewing. \willie{show a number of baseline data here. consider whether colors help view or just add confusion.}}
+% \end{figure*}
+
+\begin{figure}[h]
+  \centering
+  \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2001_data_1.png}} 
+  \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/usbh_data_3.png}} 
+  \subfloat[]{\label{fig:baselinedata2}\includegraphics[width=0.33\textwidth]{../img/traffic2_data_1.png}}\\
+  \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2009_data_1.png}} 
+  \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2009_data_2.png}} 
+  \subfloat[]{\label{fig:baselinedata2}\includegraphics[width=0.33\textwidth]{../img/pets2009_data_3.png}}
+  \caption{Baseline extracted features from the (a.) PETS2001 Dataset, (b.) Ants Dataset, (c.) Traffic Dataset, and PETS2009/2010 benchmark dataset, frames (a.) 1-200, (b.) 201-400, (c.) 401-600. Time is shown on the vertical axis.}
+  \label{fig:baselinedata_both}
+\end{figure}
 Inference performed on the time dependent Dirichlet process mixture model (Section~\ref{sec:inference}) carries out clustering of the data, which isolates each worm-like data cloud and allows each object to be localized and tracked.
 
 
@@ -364,8 +376,14 @@ Frame differencing is unsophisticated, computationally inexpensive, able to be a
 \begin{figure}
   \centering
   \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_723.pdf}} 
-  \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_724.pdf}}
-  \subfloat[]{\label{fig:ants_img_framediff}\includegraphics[width=0.32\textwidth]{../img/usbh_framediff.png}}
+  \subfloat[]{\label{fig:ants_img2}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_724.pdf}}
+  \subfloat[]{\label{fig:ants_img_framediff}\includegraphics[width=0.323\textwidth]{../img/usbh_framediff.png}}\\
+  \subfloat[]{\label{fig:traffic2_img}\includegraphics[width=0.328\textwidth]{../img/traffic2_frame1.png}} 
+  \subfloat[]{\label{fig:traffic2_img2}\includegraphics[width=0.328\textwidth]{../img/traffic2_frame2.png}}
+  \subfloat[]{\label{fig:traffic2_img_framediff}\includegraphics[width=0.3273\textwidth]{../img/traffic2_framediff.png}}\\
+    \subfloat[]{\label{fig:pets2009_img}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame1.png}} 
+  \subfloat[]{\label{fig:pets2009_img2}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame2.png}}
+  \subfloat[]{\label{fig:pets2009_img_framediff}\includegraphics[width=0.333\textwidth]{../img/pets2009_framediff.png}}
   \caption{(a., b.) Consecutive frames of a video containing four ants. (c.) Extraction results produced by taking the pixel-wise difference between these frames}
   \label{fig:img_and_framediff}
 \end{figure}
@@ -450,6 +468,7 @@ where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are 
 
 
 
+
 \section{Inference}
 \label{sec:inference}
 Algorithms that infer latent model parameters in a Bayesian manner given the data gained during extraction provide detection and tracking results. By formulating the detection and tracking task in terms of a generative model, a variety of methods previously developed for statistical inference can be readily applied; we separate presentations of model and inference so that multiple inference methods, each with its own benefits in terms of precision and speed, can be formulated and applied independently to gain detection and tracking results. This section provides background on the two inference procedures implemented in this study, used to perform Bayesian inference on the model described in Section~\ref{sec:modelspec}. The first is a type of Markov Chain Monte Carlo (MCMC) batch inference, which uses Gibbs sampling to generate samples from a posterior distribution over a model, and the second is a type of Sequential Monte Carlo (SMC) inference, also known as a particle filter, which also generates samples from a posterior information, but in this case in a sequential manner that is allowed due to the time-dependent nature of the model.
@@ -498,15 +517,23 @@ The sampler performs Gibbs sampling; it operates by iteratively sampling each me
 \subsubsection{Sampling Assignment Variables $c_{i}$}
 \label{sec:sample_assignments}
 
-A value proportional to the posterior probability can be computed for each possible value that $c_{i}$ may take on; these values allow us to construct a discrete probability distribution that may be sampled from to get a posterior assignment sample. The possible values that the assignment may take on are $c_{i} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between observation $i$ and its deletion point $d_{i}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
+A value proportional to the posterior probability can be computed for each possible value that $c_{i}$ may take on; these values allow us to construct a discrete probability distribution that may be sampled from to get a sample from the posterior distribution over assignments. The possible values that the assignment may take on are $c_{i} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between observation $i$ and its deletion point $d_{i}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
 \begin{equation}
 p(c_{i} = k | state) \propto \prod_{i' = i}^{d_{i}} P(c_{i'} | m_{i'-1}, c_{1:i'-1}) \newline \times
 \begin{cases}
 	P(\bold{x}_{i} | \theta_{k,t})                                        \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
-	\int P(\bold{x}_{i} | \theta) * \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
+	\int P(\bold{x}_{i} | \theta) \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
 \end{cases}
 \end{equation}
-\willie{$d_{i}$ is actually a time; product needs to actually go up to last observation at time $d_{i}$} where the distribution under the product $P(c_{i'} | m_{i'-1}, c_{1:i'-1})$ is given in, and is taken under the situation where $c = k$. If a new cluster is sampled as an assignment, the cluster parameters and auxiliary variables must be initialized for all time steps. \willie{finish writing the few tricky technical stuff here}
+\willie{$d_{i}$ is actually a time; product needs to actually go up to last observation at time $d_{i}$} where $t$ is the time of observation $i$, and the distribution under the product $P(c_{i'} | m_{1:K_{t}^{'}, i'-1}, c_{1:i'-1})$ is given by 
+\begin{equation}
+P(c_{i} = k | m_{1:K_{t}^{'}, i-1}, c_{1:i-1}, \alpha) \propto 
+\begin{cases}
+m_{k, i-1} \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
+\alpha \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
+\end{cases}
+\end{equation}
+which is taken under the situation where $c = k$. If a new cluster is sampled as an assignment, the cluster parameters and auxiliary variables must be initialized for all time steps. \willie{finish writing the few tricky technical stuff here}
 
 
 \subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
@@ -542,9 +569,33 @@ The posterior distribution of each of the auxiliary variables $z_{k,t,m}$ can be
 \begin{equation}
 P(z_{k,t,m} | state) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
 \end{equation}
-This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample.
+This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample. The M-H algorithm is outlined in Algorithm~\ref{alg:MH}. \willie{am i citing wrong?}
 
-The M-H algorithm is used to sample auxiliary variables for each alive cluster. In this algorithm, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
+\begin{algorithm}[h]
+\label{alg:MH}
+\caption{Metropolis Hastings Algorithm}
+\begin{algorithmic}[1]
+\STATE $f(x)$ is the desired stationary PDF
+\STATE $P(x_{i} | x_{i-1})$ is the proposal pdf
+\STATE Initialize $x_{0}$
+\FOR{$i = 1 : burn\hspace{1pt}in + N$}
+\STATE Draw $x^{*} \sim P(x_{i} | x_{i-1})$
+\STATE Draw $\alpha \sim U(0,1)$
+\STATE $r_{accept} \leftarrow \frac{f(x^{*})P(x_{i-1} | x^{*})} {f(x_{i-1})P(x^{*} | x_{i-1})} $
+\IF{$\alpha < min \{ 1, r_{accept} \} $}
+\STATE $x_{i} \leftarrow x^{*}$
+\ELSE
+\STATE $x_{i} \leftarrow x_{i-1}$
+\ENDIF
+\ENDFOR
+\STATE Discard samples $x_{1}, \ldots, x_{burn\hspace{1pt}in}$
+\STATE \textbf{Output}: Remaining samples $x_{1}, \ldots, x_{N}$
+\end{algorithmic}
+%\caption{Say thing at end}
+\end{algorithm}
+
+
+The M-H algorithm is used to sample auxiliary variables for each alive cluster. In short, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
 \begin{equation}
 z_{k,t,m}^{*}  \sim  P(z_{k,t,m} | \theta_{k,t}) = \mathcal{N}(z_{k,t,m}^{s} | \boldsymbol{\mu}_{k,t}, \Sigma_{k,t}) \mathcal{M}n(z_{k,t,m}^{c} | \bold{p}_{k,t})
 \end{equation}
@@ -574,20 +625,59 @@ Before the samples can be iteratively drawn from each element of the state given
 
 \subsection{SMC Inference}
 
-This section details a Sequential Monte Carlo (SMC) sampler--also known as a particle filter--used to perform inference, which provides another method to carry out unsupervised detection and tracking. \willie{general overview here: at each time step, perform sampling, and then show algorithm figure / thing}
+This section details a Sequential Monte Carlo (SMC) sampler--also known as a particle filter--used to perform inference, which provides another method to carry out unsupervised detection and tracking. An overview of SMC inference is given in Algorithm~\ref{alg:SMC}. \willie{general overview here: at each time step, perform sampling, and then show algorithm figure / thing}
+
+\begin{algorithm}
+\caption{Sequential Monte Carlo Inference for the GPUDDPM}
+\label{alg:SMC}
+\begin{algorithmic}[1]
+\FOR{$t = 1 : T$}
+\FOR{$l = 1 : L$}
+\STATE $K_{t}^{(l)}  \leftarrow K_{t-1}^{(l)}$
+\FOR{$i = 1 : N_{t}$}
+\STATE Sample assigments from previous time sizes and cluster parameters $\theta_{k,t-1}$
+\STATE Draw $c_{i} \sim P(c_{i} | m_{1:K_{t-1}, i-1}, \theta_{1:K_{t-1}, t-1} )$
+\IF{$c_{i} = K_{t} + 1$}
+\STATE Draw a new cluster $\theta_{K_{t}+1,t} \sim \mathbb{G}_{0}(\text{priors})$   \willie{distro after algo?}
+\STATE $K_{t} \leftarrow K_{t} + 1$
+\ENDIF
+\ENDFOR
+\FOR{$s = 1 : S$}
+\FOR{$k = 1 : K$}
+\STATE Sample new cluster params via aux (given curent assignments and prev clusters)
+\ENDFOR
+\FOR{$i = 1 : N_{t}$}
+\STATE Sample new assignments (given current cluster params)
+\STATE Draw $c_{i} \sim P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )$
+\ENDFOR
+\STATE Sample new cluster sizes.
+\ENDFOR
+\ENDFOR
+\STATE Only keep some of the $L$ samples.
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
 
 
 \subsubsection{Proposal Distribution for Assignments $c_{i}$}
+The probability of assignments given current cluster sizes and cluster parameters can be written as
+\begin{equation}
+P(c_{i} = k) = P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )
+\end{equation}
 
 
 \subsubsection{Proposal Distribution $q_{1}$}
 
+\begin{equation}
+P(\theta_{k,t}) = P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )
+\end{equation}
+
 
 \subsubsection{Proposal Distribution $q_{2}$}
 
-
-
-
+\begin{equation}
+P(\theta_{k,t}) = 	P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )
+\end{equation}
 
 
 
@@ -595,6 +685,9 @@ This section details a Sequential Monte Carlo (SMC) sampler--also known as a par
 
 Noisy extraction procedures may result in erroneous data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ to be a two component mixture, where one component is the base distribution and the other is a multivariate normal distribution with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution \willie{need more rigorus terms here} with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$.
 
+
+\subsection{From Inference to Tracking Results}
+The multivariate normal-multinomial model described in this section can be used to gain object detection and tracking results. The nature of object detection and tracking results may vary depending on the application or performance metrics used (see Section~\ref{sec:performance_metrics}). In this study, we desired the centroid position and approximate spatial region for each moving object, for each frame that this object can be seen within the video. We chose to make our results depend completely on the inferred parameters of the multivariate normal distribution of each cluster. Each inferred cluster was taken to be a distinct detected object, and the sequence of means and covariance matrices for a given cluster were used, respectively, to determine the position and spatial region of a given object over a sequence of time steps. In particular, the mean parameter was taken to be the centroid of an object, and a 2-dimensional oval denoting a boundary around the mean that contains a specified percentage of the data (where the specification for this oval is given in Section~\ref{sec:}) was taken to be the spatial region of the object. Furthermore, as both provided inference methods use sampling, and each sample represents a result, we must choose a way to narrow these down to a single result. We have found that calculating the joint log probability for each sample and choosing the sample that yields the highest value as a result works reasonably well.
 
 
 
@@ -605,10 +698,11 @@ Noisy extraction procedures may result in erroneous data points that do not corr
 \section{Experiments}
 \label{sec:experiments}
 
-The following sections provide details on performance evaluation metrics that have been developed for use in object detection and tracking studies (and that are used to quantify experimental results in this paper), synthetic video experiments that verify certain aspects of the technique presented in this paper, benchmark video experiments that demonstrate the performance of this technique in relation to other methods developed in recent years, and nonstandard video datasets to show the capability of this technique to perform unsupervised detection and tracking on a diverse range of object and video types.   
+This section provides details on performance evaluation metrics that have been developed to quantify results in object detection and tracking studies (and adopted in this paper), synthetic video experiments that verify certain aspects of the developed technique, benchmark video experiments that demonstrate the performance of this technique in relation to other methods developed in recent years, and new video experiments to show the capability of this technique to perform unsupervised detection and tracking on a range of object and video types.   
 
 
 \subsection{Performance Evaluation Metrics}
+\label{sec:performance_metrics}
 
 Performance evaluation metrics, which intend to provide a standardized way of quantifying the success of a detection and tracking procedure on a given video, have started to become well studied and consistently used in the past four years. The metrics developed in \cite{kasturi_2008} and used in \cite{ellis_2010, taj_2007, lee_2009} have become well established metrics for evaluating the performance of object detection and tracking in videos and have been adopted by the Video Analysis and Content Extraction (VACE) program and the Classification of Events, Activities, and Relationships (CLEAR) consortium, two large-scale efforts concerned with video tracking and interaction analysis. These metrics are used to quantify the experimental results in this study.
 
@@ -618,7 +712,7 @@ The above metrics are dependent upon ground-truth data specifying the positions 
 \subsubsection{Mapping Ground-Truth to Output}
 \label{sec:mappingtoground}
 
-The problem of finding a mapping between a video's ground-truth tracks and an algorithm's output tracks is nontrivial, though necesary to solve in order to compute the performance evaluation metrics used in this study. In short, the typical solution to this problem involves first specifying a performance metric and then choosing the mapping from ground-truth tracks to output tracks which yields the most favorable performance metric value. This process is described in detail by Kasturi et al. \cite{kasturi_2008}; we follow the method outlined in this paper to find an optimal mapping. Similiar to descriptions in this paper, we implement the Hungarian algorithm \cite{munkres_1957} as a polynomial-time ($O(n^{3})$) solution to the problem of optimally mapping two sets of tracks once the similarity between any two tracks given some specified metric is established. Additionally, the method employed in \cite{kasturi_2008} allows erroneous and undetected tracks to be left unmapped, which is both desired and necessary in the case where there is a different number of ground-truth and output tracks. Note that once a mapping from a collection of ground-truth tracks to a collection of output tracks has been established, one can determine which output tracks are false positives (the output tracks to which no ground-truth track is assigned) and which input tracks are false negatives (the input tracks that are not assigned to an output track). The numbers of tracks displaying both of these failures are factors in the performance metrics used in this study.
+The problem of finding a mapping between a video's ground-truth tracks and an algorithm's output tracks is nontrivial, though necesary to solve, in order to compute the performance evaluation metrics used in this study. In short, the typical solution to this problem involves first specifying a performance metric and then choosing the mapping from ground-truth tracks to output tracks which yields the most favorable performance metric value. This process is described in detail by Kasturi et al. \cite{kasturi_2008}; we follow the method outlined in this paper to find an optimal mapping. Similiar to descriptions in \cite{kasturi_2008}, we implement the Hungarian algorithm \cite{munkres_1957} as a polynomial-time ($O(n^{3})$) solution to the problem of optimally mapping two sets of tracks once the similarity between any two tracks given some specified metric is established. Additionally, the method employed in \cite{kasturi_2008} allows erroneous and undetected tracks to be left unmapped, which is both desired and necessary in the case where there is a different number of ground-truth and output tracks. Note that once a mapping from a collection of ground-truth tracks to a collection of result tracks has been established, one can determine which result tracks are false positives (the result tracks to which no ground-truth track is assigned) and which ground-truth tracks are true negatives (the ground-truth tracks that are not assigned to a result track). The numbers of tracks displaying both of these failures are factors in the performance metrics used in this study.
 
 %, where a numerical search algorith--the Hungarian algorithm \cite{munkres_1957}--is used to find an optimal mapping from ground-truth to output tracks without requiring the performance metric value of all possible mapping combinations to be computed (reducing the time complexity from factorial to polynomial time)
 
@@ -684,7 +778,7 @@ Given the STDA for a video sequence, the ATA can be computed by the formula
 \subsection{Synthetic Video Datasets}
 \label{sec:syntheticvideos}
 
-Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction and inference procedures described in Section~\ref{sec:modelspec} were carried out to return a collection of centroid-position-sequences, each corresponding to the sequence of positions of a tracked object over each frame that it is present in the video.
+Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction and inference procedures described in Section~\ref{sec:modelspec} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:paramstoresults}).
 
 
 \subsubsection{Tracking by Appearance}
@@ -767,7 +861,7 @@ The PETS2001 dataset consists of
 
 \begin{figure}[h]
         \center{\includegraphics[width=85mm]{../img/pets2001_alphaimg_hr.png}}
-        \caption{\label{fig:baselinedata} Extracted data and sample from posterior of the model overlaid on three, time-varying images from the pets2001 dataset.}
+        \caption{\label{fig:alpha_overlay_1} Extracted data and sample from posterior of the model overlaid on three, time-varying images from the pets2001 dataset.}
 \end{figure}
 
 
