@@ -809,7 +809,7 @@ The ground-truth authored by the ViPER tool took the form of bounding boxes deno
 \subsection{Synthetic Video Datasets}
 \label{sec:syntheticvideos}
 
-Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction and inference procedures described in Section~\ref{sec:modelspec} and \ref{sec:inference} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:inference_to_results}).
+Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction procedure described in Section~\ref{sec:modelspec_extraction} (using $L=3$) and inference procedures described in \ref{sec:inference} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:inference_to_results}).
 
 
 \subsubsection{Tracking by Appearance}
@@ -867,19 +867,39 @@ Benchmark video datasets for object tracking and detection have been produced to
 \subsubsection{PETS2000 and PETS2001}
 \label{sec:pets2000_2001}
 
-The PETS2000 and PETS2001 video datasets both contain a small number of humans and vehicles traveling across a parking lot, with video taken from above, emulating what might be recorded by standard outdoor surveillance equipment. The `Test Sequence', a set of images from a monocular, stationary camera, was used from the PETS2000 workshop, and View Two of Dataset 1, also taken via a monocular, stationary camera, was used from the PETS2001 workshop. The MCMC algorithm (described in Section~\ref{sec:MCMC}) was used for inference in these experiments.
+The PETS2000 and PETS2001 video datasets both consist of a small number of humans and vehicles traveling across a parking lot, with video taken from above, emulating what might be recorded by standard outdoor surveillance equipment. The `Test Sequence', a set of images from a monocular, stationary camera, was used from the PETS2000 workshop, and View Two of Dataset 1, also taken via a monocular, stationary camera, was used from the PETS2001 workshop. The MCMC algorithm (described in Section~\ref{sec:MCMC}) was used for inference in these experiments.
 
-Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results are displayed in Figure~\ref{fig:pets2000_results}; in this figure, a sample from the posterior of the cluster parameters is overlayed the data and video frames at three time points, where the data is colored by assignment. \willie{also show pets 2001 result and per-frame overlays for both}.
+Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results for the PETS2000 dataset are displayed in Figure~\ref{fig:pets2000_results} and for the PETS2001 dataset in Figure~\ref{fig:alpha_overlay_1}; in these figure, a sample from the posterior of the cluster parameters is overlayed the data and video frames at three time points, where the data is colored by assignment. \willie{also show pets 2001 result and per-frame overlays for both}.
 
-To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
+To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{sec:	inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
+
+
+% \begin{figure}
+% 	\centering
+% 	\subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
+% 	\subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
+% 	\caption{Sample from posterior of the state for the PETS2001 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
+% 	\label{fig:pets2001_results}
+% \end{figure}
+
+
+
+\begin{figure}[h]
+        \center{\includegraphics[width=85mm]{../img/pets2001_alphaimg_hr.png}}
+        \caption{\label{fig:alpha_overlay_1} Extracted data and sample from posterior of the model overlaid on three frames from the pets2001 video.}
+\end{figure}
+
+
 
 \begin{figure}
-  \centering             
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_pm}}
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_pm}}
-  \caption{The SFDA (blue solid line) and ATA (red dashed line are) vs  confidence values from which an object's oval region is computed for (a.) PETS2000 and (b.) PETS2001 }
-  \label{fig:pm_conf}
+	\centering
+	\subfloat[]{\includegraphics[width=0.6\textwidth]{../img/pets2000_results_1}}
+	\subfloat[]{\includegraphics[width=0.40\textwidth]{../img/pets2000_4objects.png}}
+	\caption{Extracted data and sample (a.) from posterior of the model overlaid (b.) on a frame from the pets2000 video}
+	\label{fig:pets2000_results}
 \end{figure}
+
+
 
 
 \begin{figure}
@@ -892,39 +912,25 @@ To calculate performance metrics (both SFDA and ATA), one must specify a confide
   \label{fig:pets2001_imgs}
 \end{figure}
 
-
 \begin{figure}
-	\centering
-	\subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
-	\subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
-	\caption{Sample from posterior of the state for the PETS2001 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
-	\label{fig:pets2001_results}
-\end{figure}
-
-
-
-\begin{figure}[h]
-        \center{\includegraphics[width=85mm]{../img/pets2001_alphaimg_hr.png}}
-        \caption{\label{fig:alpha_overlay_1} Extracted data and sample from posterior of the model overlaid on three, time-varying images from the pets2001 dataset.}
-\end{figure}
-
-
-
-\begin{figure}
-	\centering
-	\subfloat[]{\includegraphics[width=1\textwidth]{../img/pets2000_results_1}}
-	%\subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_results_2}}
-	\caption{pets2000}
-	\label{fig:pets2000_results}
+  \centering             
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_pm}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_pm}}
+  \caption{The SFDA (blue solid line) and ATA (red dashed line are) vs  confidence values from which an object's oval region is computed for (a.) PETS2000 and (b.) PETS2001 video datasets.}
+  \label{fig:pm_conf}
 \end{figure}
 
 
 
 \subsubsection{PETS2009/2010}
 
-A video dataset used in both the PETS2009 and PETS2010 conferences was chosen for experimentation due to its prominence in a number of studies as a well tested benchmark dataset \willie{ref papers using this dataset}. This video consists of a 794 frame video. \willie{describe which camera, sequence and view number, look at ferryman? intro paper and performance benchmark paper for good descriptions}. The entire video sequence (all frames) were used in this experiment.
+A video dataset used in both the PETS2009 and PETS2010 conferences, called `S2.L1 at time sequence 12.34' was chosen for experimentation due to its prominence in a number of studies \willie{ref papers using this dataset}. This dataset consists of a monocular, stationary camera, 794 frame video sequence. The entire video sequence was used in this experiment. 
 
-Due to the large number of frames and objects in this video, the SMC algorithm (described in Section~\ref{sec:SMC}) was used for inference. 
+Due to the large number of frames and objects in this video, the SMC algorithm (described in Section~\ref{sec:SMC}) was used for inference. This method of sequential inference was observed, on this dataset, to converge to a better sample in a shorter period of time in comparison with the MCMC algorithm. For this reason, we found that it was better suited for this large dataset.
+
+Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$ and parameters for the model were chosen, using the method outlined in Section~\ref{sec:parameter_recap}, to be $\alpha = 0.1, \rho = 0.8, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 6, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (3, \ldots, 3)$. Additionlly, as with the other video datasets, ground-truth was authored using the ViPER tool.
+
+Sequential inference produced reasonably accurate results to be achieved in a short timespan.  
 
 \begin{figure}
   \centering             
@@ -974,7 +980,7 @@ The two video datasets in this section are video datasets first used in this pap
 
 
 
-\section*{Results and Discussion}
+\section*{Discussion}
 \label{sec:discussion}
 
 Discuss parameters somewhere in here. to add in discussion: thoughts about: deletion param vs. dataset size (and tracking through occlusion vs clusters taking over), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects.  we detect movement, which isn’t exactly same as perf. metrics (ie our tracking stops if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
