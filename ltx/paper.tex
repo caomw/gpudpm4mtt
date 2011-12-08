@@ -159,7 +159,7 @@ We will use the phrase `baseline' three-dimensional extraction data to refer to 
   \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2009_data_1.png}} 
   \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2009_data_2.png}} 
   \subfloat[]{\label{fig:baselinedata2}\includegraphics[width=0.33\textwidth]{../img/pets2009_data_3.png}}
-  \caption{Baseline extracted features from the (a.) PETS2001 Dataset, (b.) Ants Dataset, (c.) Traffic Dataset, and PETS2009/2010 benchmark dataset, frames (a.) 1-200, (b.) 201-400, (c.) 401-600. Time is shown on the vertical axis.}
+  \caption{Baseline extracted features from the (a.) PETS2001 Dataset, (b.) Ants Dataset, (c.) Traffic Dataset, and PETS2009/2010 benchmark dataset, frames (a.) 1-200, (b.) 201-400, (c.) 401-600. Time is shown on the vertical axis. Marker color corresponds with spatial coordinates and is shown for ease of viewing.}
   \label{fig:baselinedata_both}
 \end{figure}
 Inference performed on the time dependent Dirichlet process mixture model (Section~\ref{sec:inference}) carries out clustering of the data, which isolates each worm-like data cloud and allows each object to be localized and tracked.
@@ -431,9 +431,9 @@ The distribution families assumed to generate each $\bold{x}$ must be justified.
 
 $\mathbb{G}_{0}$ denotes the base distribution of the time-dependent Dirichlet process mixture; it also serves as a prior distribution for the parameters $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ present in the likelihood. We make use of conjugate priors in the base distribution to allow for more efficient computation. Specifically, in the experiments carried out in this paper, a normal-inverse-Wishart prior is placed on the multivariate normal parameters $\{ \boldsymbol{\mu}, \Sigma \}$ , and a Dirichlet prior is placed on the multinomial parameter $ \{  \bold{p}  \} $ (where the normal-inverse-Wishart is a conjugate prior for the multivariate normal component of the likelihood and the Dirichlet is a conjugate prior for the multinomial component). The prior can thus be written
 \begin{equation} \label{basedistro}
-\mathbb{G}_{0}(\theta) = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
+\mathbb{G}_{0}(\theta) = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
 \end{equation}
-where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution, $\mathcal{D}ir$ denotes the Dirichlet distribution, and the prior has the hyperparameters $\boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0}$ and $\bold{q}_{0}$.  \willie{reference text with good background on NiW and Dir distributions}
+where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution, $\mathcal{D}ir$ denotes the Dirichlet distribution, and the prior has the hyperparameters $\boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0}$ and $\bold{q}_{0}$.  \willie{reference text with good background on NiW and Dir distributions}
 
 
 
@@ -461,12 +461,40 @@ z_{t, m} | \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t}  \sim  \mathcal{N}(\bo
 \end{equation}
 To satisfy the above criteria for auxiliary variables, at each time $t$ we specify the dependencies of a given cluster on its associated set of auxiliary variables by
 \begin{equation} \label{transker2}
-\boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} | \bold{z}_t  \sim  \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M})  \mathcal{D}ir(\bold{q}_{M})
+\boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} | \bold{z}_t  \sim  \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{M}, \kappa_{M}, \nu_{M}, \Lambda_{M})  \mathcal{D}ir(\bold{q}_{M})
 \end{equation}
-where $\boldsymbol{\mu}_{M}, k_{M}, v_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are parameters given by:
+where $\boldsymbol{\mu}_{M}, \kappa_{M}, \nu_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are parameters given by
 \willie{these are given in next section, need to consider if I actually want to repeat them here}
 
 
+
+\subsection{Recap of Parameters}
+\label{sec:parameter_recap}
+
+The multivariate normal-multinomial GPUDDPM implemented in this study has a number of parameters, which can be tuned to increase the efficacy of object detection and tracking. Object apperance parameters include\\\\
+\begin{center}
+\begin{tabular}[c]{l p{10cm}}
+$\boldsymbol{\mu}_{0}$  &  The mean prior. In experiments performed in Section~\ref{sec:experiments} the data was recentered to the origin, and this parameter was set to $(0,0)$ \\
+$\kappa_{0}$  &  scale factor of the variance of the prior on the mean\\
+$\nu_{0}$  &  scale factor of the variance of the prior on the covariance\\
+$\Lambda_{0}$  &  shape factor of the prior on the covariance\\
+$q_{0}$  &  scale factor of the prior on the multinomial counts
+\end{tabular}
+\end{center} \vspace{5mm}
+The following parameter dictates characteristics involving the movement of objects
+\begin{center}
+\begin{tabular}[c]{l p{10cm}}
+$M$  &  Number of auxiliarty variables. A large number will produce lower variation in position (better for slower objects) and a low number will produce higher variation in position.
+\end{tabular}
+\end{center} \vspace{5mm}
+Additionally, one can tune the model's tendency to detect new objects and maintain the existence of these objects (or the rate at which objects become inactive or leave the video) with the following parameters
+\begin{center}
+\begin{tabular}[c]{l p{10cm}}
+$\alpha$  &  The granularity parameter for the Dirichlet Process. A higher value will increase the tendency for new objects to be detected.\\
+$\rho$  &  The deletion parameter. A higher value will give objects an increased tendency to die off.
+\end{tabular}
+\end{center}
+\willie{Discuss choosing parameters}
 
 
 \section{Inference}
@@ -475,6 +503,7 @@ Algorithms that infer latent model parameters in a Bayesian manner given the dat
 
 
 \subsection{MCMC Batch Inference}
+\label{sec:MCMC}
 
 This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which provides a method to carry out unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution--i.e. it implements Gibbs sampling--in order to gain approximate samples from the posterior distribution of the cluster parameters given the data. Additionally, this sampler makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
@@ -494,10 +523,10 @@ The MCMC sampler described in this section operates in this alternate representa
 	 \bold{x}_{i} | c_{i}, \theta_{c_{i},t} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i},t}, \Sigma_{c_{i},t})  \mathcal{M}n(\bold{p}_{c_{i},t}) \\
 	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
 	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1\\
-	\theta_{k, t} | \theta_{k, t-1}, \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0}  &\sim 
+	\theta_{k, t} | \theta_{k, t-1}, \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0}  &\sim 
 \begin{cases}
 	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
-	\mathbb{G}_{0}(\boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0})  \hspace{15pt} \text{if } k = K_{t-1} + 1
+	\mathbb{G}_{0}(\boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0})  \hspace{15pt} \text{if } k = K_{t-1} + 1
 \end{cases}
 \end{split}
 \end{align}
@@ -624,6 +653,7 @@ Before the samples can be iteratively drawn from each element of the state given
 
 
 \subsection{SMC Inference}
+\label{sec:SMC}
 
 This section details a Sequential Monte Carlo (SMC) sampler--also known as a particle filter--used to perform inference, which provides another method to carry out unsupervised detection and tracking. An overview of SMC inference is given in Algorithm~\ref{alg:SMC}. \willie{general overview here: at each time step, perform sampling, and then show algorithm figure / thing}
 
@@ -687,7 +717,8 @@ Noisy extraction procedures may result in erroneous data points that do not corr
 
 
 \subsection{From Inference to Tracking Results}
-The multivariate normal-multinomial model described in this section can be used to gain object detection and tracking results. The nature of object detection and tracking results may vary depending on the application or performance metrics used (see Section~\ref{sec:performance_metrics}). In this study, we desired the centroid position and approximate spatial region for each moving object, for each frame that this object can be seen within the video. We chose to make our results depend completely on the inferred parameters of the multivariate normal distribution of each cluster. Each inferred cluster was taken to be a distinct detected object, and the sequence of means and covariance matrices for a given cluster were used, respectively, to determine the position and spatial region of a given object over a sequence of time steps. In particular, the mean parameter was taken to be the centroid of an object, and a 2-dimensional oval denoting a boundary around the mean that contains a specified percentage of the data (where the specification for this oval is given in Section~\ref{sec:}) was taken to be the spatial region of the object. Furthermore, as both provided inference methods use sampling, and each sample represents a result, we must choose a way to narrow these down to a single result. We have found that calculating the joint log probability for each sample and choosing the sample that yields the highest value as a result works reasonably well.
+\label{sec:inference_to_results}
+The multivariate normal-multinomial model on which inference is described in this section can be used to gain object detection and tracking results. The nature of object detection and tracking results may vary depending on the application or performance metrics used (see Section~\ref{sec:performance_metrics}). In this study, we desired the centroid position and approximate spatial region for each moving object, for each frame that this object can be seen within the video. We chose to make our results depend completely on the inferred parameters of the multivariate normal distribution of each cluster. Each inferred cluster was taken to be a distinct detected object, and the sequence of means and covariance matrices for a given cluster were used, respectively, to determine the position and spatial region of a given object over a sequence of time steps. In particular, the mean parameter was taken to be the centroid of an object, and a 2-dimensional oval denoting a boundary around the mean that contains a specified percentage of the data (where the specification for this oval is given in Section~\ref{sec:pets2000_2001}) was taken to be the spatial region of the object. Furthermore, as both provided inference methods use sampling, and each sample represents a result, we must choose a way to narrow these down to a single result. We have found that calculating the joint log probability for each sample and choosing the sample that yields the highest value as a result works reasonably well.
 
 
 
@@ -773,17 +804,20 @@ Given the STDA for a video sequence, the ATA can be computed by the formula
 \text{ATA} = \frac{\text{STDA}}{\left( \frac{N_{G} + N_{D}}{2} \right)}
 \end{equation}
 
-
+The ground-truth authored by the ViPER tool took the form of bounding boxes denoting the spatial postion of each object at each time step. Consequentially, to find the spatial overlap between results and ground-truth, which is intrinsic to both metrics, a rectangular bounding box was needed per object per time step from the results of the algorithm. We took the maximal and minimal axially aligned values of the oval produced by our algorithm (as described in Section~\ref{sec:inference_to_results}) to be the sides of a representative bounding box for a given object at a given frame.
 
 \subsection{Synthetic Video Datasets}
 \label{sec:syntheticvideos}
 
-Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction and inference procedures described in Section~\ref{sec:modelspec} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:paramstoresults}).
+Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction and inference procedures described in Section~\ref{sec:modelspec} and \ref{sec:inference} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:inference_to_results}).
 
 
 \subsubsection{Tracking by Appearance}
 
 The first synthetic video experiment aimed to test the ability of the model and inference procedure to maintain the identity of independent objects based on color information alone. Two videos were constructed, both containing a red square (rgb value $[255,0,0]$ and size $20$ x $20$ pixels) and a blue square (rgb value $[0,0,255]$ and size $20$ x $20$ pixels). In both videos, the squares begin at opposite sides of the scene at frame $f=1$ and travel towards each other, arriving at the same location at $f=100$ (where the blue square occludes the red square). The second half of the two videos differ in that both squares in the first video continue in the same direction and end at the other's starting positions at $f=200$, and both squares in the second video reverse directions and end at their initial starting positions at $f=200$. Frame difference extraction on each video yields a dataset with identical spatial features; hence, successful tracking depends fully on the reasonable incorporation of color information into the model.
+
+Parameters were set to the same values for inference on both videos, using the method outlined in Section~\ref{sec:parameter_recap} to choose parameters. The chosen values were $\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$. Inference was carried out using the MCMC algorithm (Section~\ref{sec:MCMC}); the posterior sample taken as the result correctly tracked both colored squares through occlusion in both videos, and is shown in Figure~\ref{fig:synth_one_plot}. \willie{still need to include performance metric results for these synthetic datasets.}.
+
 
 \begin{figure}
   \centering               
@@ -800,42 +834,52 @@ The first synthetic video experiment aimed to test the ability of the model and 
 
 The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
 
-\begin{figure}
-  \centering               
-  % \subfloat[]{\includegraphics[width=0.35\textwidth, angle=30]{../img/synth2_img}}
-  \subfloat[]{\includegraphics[width=0.55\textwidth]{../img/synth2_img_b}}
-  \subfloat[]{\includegraphics[width=0.45\textwidth]{../img/synth2_final}}
-  \caption{(a.) Video frame $f=10$ from synthetic experiment two. (b.) Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
-  \label{fig:synth_two_plot}
-\end{figure}
+Parameter values were chosen in the same way, and set to the same values, as the first synthetic experiment. The MCMC inference algorithm correctly tracked all three objects through occlusion and inferred the appearance and size shifts. Figure~\ref{fig:synth2_alphaimg} shows a sample from the posterior distribution of the cluster parameters, where the mean and oval representation of the covariance matrix (with $0.5$ confidence value) are overlayed on the data. The data is plotted in three dimensional space, where time is represented on the vertical axis, and each data point is colored by its assignment to one of the three inferred clusters. Both the cluster parameter sample and data are overlaid on three semi-transparent planes showing the objecs in the video in three frames. \willie{still need to include performance metric results for this synthetic dataset}.
 
+% \begin{figure}
+%   \centering               
+%   % \subfloat[]{\includegraphics[width=0.35\textwidth, angle=30]{../img/synth2_img}}
+%   \subfloat[]{\includegraphics[width=0.55\textwidth]{../img/synth2_img_b}}
+%   \subfloat[]{\includegraphics[height=0.3\textheight]{../img/synth2_alphaimg_hd.png}}
+%   \caption{(a.) Video frame $f=10$ from synthetic experiment two. (b.) Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. All are overlaid on three, time-varying images from synthetic experiment. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
+%   \label{fig:synth_two_plot}
+% \end{figure}
 
 \begin{figure}[h]
-        \center{\includegraphics[width=0.99\textwidth]{../img/synth2_alphaimg_hd.png}}
-        \caption{\label{fig:synth2_alphaimg} Extracted data and sample from the posterior of the model overlaid on three, time-varying images from synthetic experiment 2.}
+        \center{\includegraphics[width=0.5\textwidth]{../img/synth2_alphaimg_hd.png}}
+        \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. Both the sample and data are overlaid on three images from synthetic experiment. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
 \end{figure}
 
-
-
-
-% \subsubsection{Similar Appearances}
-
-% \subsubsection{Different Numbers of Objects}
-
-% \subsubsection{Objects wih Diverse Characteristics}
+% \begin{figure}[h]
+%         \center{\includegraphics[width=0.99\textwidth]{../img/synth2_alphaimg_hd.png}}
+%         \caption{\label{fig:synth2_alphaimg} Extracted data and sample from the posterior of the model overlaid on three, time-varying images from synthetic experiment 2.}
+% \end{figure}
 
 
 
 
 \subsection{Benchmark Video Datasets}
 
-Benchmark video datasets for object tracking and detection have been produced to provide standard scenes on which researchers can compare detection and tracking results. These videos have been primarily produced for surveillance-related workshops--notably, for the International Workshop on Performance Evaluation of Tracking and Surveillance (PETS)--which provide a setting where researchers can focus on a collection of videos and computer vision goals. Four commonly used benchmark videos from four PETS workshops are 
+Benchmark video datasets for object tracking and detection have been produced to provide standard scenes on which researchers can compare detection and tracking results. These videos have been primarily produced for surveillance-related workshops--notably, for the International Workshop on Performance Evaluation of Tracking and Surveillance (PETS)--which provide researchers with video datasets and algorithmic goals on which to focus. Three commonly used benchmark videos from PETS workshops--one used in PETS2000, one in PETS2001, and one used both in PETS2009 and PETS2010--were chosen to demonstrate the efficacy of the method presented in this study. The performance metrics and benchmark datasets allow the methods developed in this paper to be quantitatively compared against other detection and tracking algorithms.
 
 %\subsubsection{PETS2000}
 
-\subsubsection{PETS2001}
+\subsubsection{PETS2000 and PETS2001}
+\label{sec:pets2000_2001}
 
-The PETS2001 dataset consists of
+The PETS2000 and PETS2001 video datasets both contain a small number of humans and vehicles traveling across a parking lot, with video taken from above, emulating what might be recorded by standard outdoor surveillance equipment. The `Test Sequence', a set of images from a monocular, stationary camera, was used from the PETS2000 workshop, and View Two of Dataset 1, also taken via a monocular, stationary camera, was used from the PETS2001 workshop. The MCMC algorithm (described in Section~\ref{sec:MCMC}) was used for inference in these experiments.
+
+Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results are displayed in Figure~\ref{fig:pets2000_results}; in this figure, a sample from the posterior of the cluster parameters is overlayed the data and video frames at three time points, where the data is colored by assignment. \willie{also show pets 2001 result and per-frame overlays for both}.
+
+To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
+
+\begin{figure}
+  \centering             
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_sfda}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_ata}}
+  \caption{The (a.) SFDA and (b.) ATA are shown, vs. confidence values from which an object's oval region is computed}
+  \label{fig:pm_conf}
+\end{figure}
 
 
 \begin{figure}
@@ -866,10 +910,6 @@ The PETS2001 dataset consists of
 
 
 
-\subsubsection{PETS2000}
-
-The PETS2000 dataset consists of
-
 \begin{figure}
 	\centering
 	\subfloat[]{\includegraphics[width=1\textwidth]{../img/pets2000_results_1}}
@@ -880,11 +920,11 @@ The PETS2000 dataset consists of
 
 
 
-%\subsubsection{PETS2004/Caviar}
-
 \subsubsection{PETS2009/2010}
 
-The PETS2009/2010 dataset consists of a 900 frame video. \willie{describe which camera, sequence and view number, look at ferryman? intro paper and performance benchmark paper for good descriptions}
+A video dataset used in both the PETS2009 and PETS2010 conferences was chosen for experimentation due to its prominence in a number of studies as a well tested benchmark dataset \willie{ref papers using this dataset}. This video consists of a 794 frame video. \willie{describe which camera, sequence and view number, look at ferryman? intro paper and performance benchmark paper for good descriptions}. The entire video sequence (all frames) were used in this experiment.
+
+Due to the large number of frames and objects in this video, the SMC algorithm (described in Section~\ref{sec:SMC}) was used for inference. 
 
 \begin{figure}
   \centering             
@@ -935,6 +975,7 @@ The two video datasets in this section are video datasets first used in this pap
 
 
 \section*{Results and Discussion}
+\label{sec:discussion}
 
 Discuss parameters somewhere in here. to add in discussion: thoughts about: deletion param vs. dataset size (and tracking through occlusion vs clusters taking over), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects.  we detect movement, which isn’t exactly same as perf. metrics (ie our tracking stops if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
 
