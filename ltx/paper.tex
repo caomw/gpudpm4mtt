@@ -484,7 +484,7 @@ $q_{0}$  &  scale factor of the prior on the multinomial counts
 The following parameter dictates characteristics involving the movement of objects
 \begin{center}
 \begin{tabular}[c]{l p{10cm}}
-$M$  &  Number of auxiliarty variables. A large number will produce lower variation in position (better for slower objects) and a low number will produce higher variation in position.
+$M$  &  Number of auxiliary variables. A large number will produce lower variation in position (better for slower objects) and a low number will produce higher variation in position.
 \end{tabular}
 \end{center} \vspace{5mm}
 Additionally, one can tune the model's tendency to detect new objects and maintain the existence of these objects (or the rate at which objects become inactive or leave the video) with the following parameters
@@ -846,7 +846,7 @@ Parameter values were chosen in the same way, and set to the same values, as the
 % \end{figure}
 
 \begin{figure}[h]
-        \center{\includegraphics[width=0.5\textwidth]{../img/synth2_alphaimg_hd.png}}
+        \center{\includegraphics[width=65mm]{../img/synth2_alphaimg_hd.png}}
         \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. Both the sample and data are overlaid on three images from synthetic experiment. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
 \end{figure}
 
@@ -869,56 +869,42 @@ Benchmark video datasets for object tracking and detection have been produced to
 
 The PETS2000 and PETS2001 video datasets both consist of a small number of humans and vehicles traveling across a parking lot, with video taken from above, emulating what might be recorded by standard outdoor surveillance equipment. The `Test Sequence', a set of images from a monocular, stationary camera, was used from the PETS2000 workshop, and View Two of Dataset 1, also taken via a monocular, stationary camera, was used from the PETS2001 workshop. The MCMC algorithm (described in Section~\ref{sec:MCMC}) was used for inference in these experiments.
 
-Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results for the PETS2000 dataset are displayed in Figure~\ref{fig:pets2000_results} and for the PETS2001 dataset in Figure~\ref{fig:alpha_overlay_1}; in these figure, a sample from the posterior of the cluster parameters is overlayed the data and video frames at three time points, where the data is colored by assignment. \willie{also show pets 2001 result and per-frame overlays for both}.
-
-To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{sec:	inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
-
-
-% \begin{figure}
-% 	\centering
-% 	\subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
-% 	\subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
-% 	\caption{Sample from posterior of the state for the PETS2001 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
-% 	\label{fig:pets2001_results}
-% \end{figure}
-
-
+Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results for the PETS2000 dataset are displayed in Figure~\ref{fig:pets2000_results} and for the PETS2001 dataset in Figure~\ref{fig:pets2001_alphaimg}; in these figure, a sample from the posterior of the cluster parameters is overlayed the data and video frames at three time points, where the data is colored by assignment. \willie{also show pets 2001 result and per-frame overlays for both}.
 
 \begin{figure}[h]
-        \center{\includegraphics[width=85mm]{../img/pets2001_alphaimg_hr.png}}
-        \caption{\label{fig:alpha_overlay_1} Extracted data and sample from posterior of the model overlaid on three frames from the pets2001 video.}
+        \center{\includegraphics[width=65mm]{../img/pets2001_alphaimg_hr.png}}
+        \caption{\label{fig:pets2001_alphaimg} Extracted data and sample from posterior of the model overlaid on three frames from the PETS2001 video.}
 \end{figure}
 
-
-
-\begin{figure}
+\begin{figure}[h]
 	\centering
-	\subfloat[]{\includegraphics[width=0.6\textwidth]{../img/pets2000_results_1}}
-	\subfloat[]{\includegraphics[width=0.40\textwidth]{../img/pets2000_4objects.png}}
-	\caption{Extracted data and sample (a.) from posterior of the model overlaid (b.) on a frame from the pets2000 video}
+	\subfloat[]{\includegraphics[width=0.58\textwidth]{../img/pets2000_results_1}}
+	\subfloat[]{\includegraphics[width=0.42\textwidth]{../img/pets2000_4objects.png}}
+	\caption{Extracted data and a sample from posterior of the model (a) overlaid on a frame from the PETS2000 video (b).}
 	\label{fig:pets2000_results}
 \end{figure}
 
+To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{sec:inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
 
 
+\begin{figure}[h]
+  \centering             
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_pm}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_pm}}
+  \caption{The SFDA (blue solid line) and ATA (red dashed line are) vs  confidence values from which an object's oval region is computed for (a) PETS2000 and (b) PETS2001 video datasets.}
+  \label{fig:pm_conf}
+\end{figure}
 
-\begin{figure}
+\begin{figure}[h]
   \centering             
   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_1}}
   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_2}}
   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_3}}
   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_4}}
-  \caption{Four frames $f=25, 35, 45, 55$ from the PETS2001 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames}}
+  \caption{Four frames $f=25, 35, 45, 55$ from the PETS2001 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames} \willie{these are old images!... haven't replaced yet}}
   \label{fig:pets2001_imgs}
 \end{figure}
 
-\begin{figure}
-  \centering             
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_pm}}
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_pm}}
-  \caption{The SFDA (blue solid line) and ATA (red dashed line are) vs  confidence values from which an object's oval region is computed for (a.) PETS2000 and (b.) PETS2001 video datasets.}
-  \label{fig:pm_conf}
-\end{figure}
 
 
 
@@ -930,52 +916,96 @@ Due to the large number of frames and objects in this video, the SMC algorithm (
 
 Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$ and parameters for the model were chosen, using the method outlined in Section~\ref{sec:parameter_recap}, to be $\alpha = 0.1, \rho = 0.8, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 6, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (3, \ldots, 3)$. Additionlly, as with the other video datasets, ground-truth was authored using the ViPER tool.
 
-Sequential inference produced reasonably accurate results to be achieved in a short timespan.  
-
-\begin{figure}
-  \centering             
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_1}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_2}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_3}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_4}}
-  \caption{Four frames $f=10, 25, 35, 75$ from the PETS2009 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames}}
-  \label{fig:pets2009_imgs}
-\end{figure}
+Sequential inference produced reasonably accurate results to be achieved in a short timespan.
 
 
-\begin{figure}
-	\centering
-	\includegraphics[width=3in]{../img/pets2009_results}
-	% \subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
-	% \subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
-	\caption{Sample from posterior of the state for the PETS2009 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
-	\label{fig:pets2009_results}
-\end{figure}
 
 
 
 
 \subsubsection{Sensitivity Analysis}
 
+SMC inference on the PETS2009 video dataset was carried out for a range of two key parameter values, $\alpha$ and $\rho$. The performance metric measures, SFDA and ATA, were computed for each combination of these two parameters. This sensitivity investigation focused on these parameters due to their potential to have a large effect on object detection accuracies. The $\alpha$ values tested included $\{ 0.01, 0.1, 1, 10, 100 \}$, and the $\rho$ values tested included $\{ 0.7, 0.75, 0.8, 0.85, 0.9 \}$.
 
-% \subsubsection{PETS2004/Caviar Datasets}
-% The Caviar datasets used in PETS2004 consist of multiple test-case-scenarios involving one or more humans.
+The following shows the SFDA sensitivity analysis results. The largest value is in bold.
+\begin{center}
+\begin{tabular}[c]{l l  l  l  l  l  l}
+  & & & $\hspace{8mm}\rho$ & & & \\
+  SFDA  &  	& $0.7$ & $0.75$ & $0.8$ & $0.85$ & $0.9$  \\  
+  &$0.01$ 	& $0.4121$ & $0.4262$ & $0.4219$ & $\bold{0.4331}$ & $0.4277$  \\
+  &$0.1$  	& $\bold{0.4336}$ & $0.4184$ & $0.4200$ & $0.4316$ & $0.4321$  \\ 
+$\alpha$ 	& $1$    & $0.4084$ & $0.4209$ & $0.4205$ & $0.4290$ & $0.4330$  \\  
+  &$10$   	& $0.3992$ & $0.4130$ & $0.4289$ & $0.4232$ & $0.4226$  \\  
+  &$100$  	& $0.3655$ & $0.3739$ & $0.3636$ & $0.3755$ & $0.3672$  \\
+\end{tabular}
+\end{center}
+
+The following shows the ATA sensitivity analysis results. The largest value is in bold.
+\begin{center}
+\begin{tabular}[c]{l l  l  l  l  l  l}
+		& & & $\hspace{8mm}\rho$ & & & \\
+ 	 ATA  & 	 	& $0.7$ & $0.75$ & $0.8$ & $0.85$ & $0.9$  \\  
+	  &$0.01$ 		& $0.2032$ & $0.2017$ & $0.2262$ & $0.1945$ & $0.1914$  \\
+		  &$0.1$ 	& $0.1964$ & $0.2042$ & $0.2401$ & $0.1990$ & $0.2017$  \\
+$\alpha$ & $1$  	& $0.2016$ & $0.2365$ & $0.2766$ & $0.2347$ & $0.2766$  \\   
+  		&$10$   	& $0.2277$ & $0.2284$ & $0.2613$ & $\bold{0.2781}$ & $0.2732$  \\  
+ 		 &$100$ 	& $0.2468$ & $0.2645$ & $0.2725$ & $0.2670$ & $\bold{0.2843}$  \\
+\end{tabular}
+\end{center}
+
+
+% By inspecting the figures, one can see that there is a point where the SFDA and ATA both achieve a maximal value.
+
+
+
+\begin{figure}[h]
+  \centering             
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2009full_sens_sfda.png}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2009full_sens_ata.png}}
+  \caption{Surface plot of the sensitivity performance metric tables}
+  \label{fig:sens_surf}
+\end{figure}
+
+
+
+
 % \begin{figure}
-% 	\centering
-% 	\includegraphics[width=3in]{../img/pets2004_results_1}
-% 	\caption{Sample from posterior of the mean for frames $f = 1-20$ overlaid on frame $f=20$.}
-% 	\label{fig:pets2009_results}
+%   \centering             
+%   \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2009_result1.png}}
+%   \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2009_result2.png}}
+%   \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2009_result3.png}}
+%   \caption{Surface of the sensitivity performance metric tables}
+%   \label{fig:sens_surf}
 % \end{figure}
 
 
+% \begin{figure}
+%   \centering             
+%   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_1}}
+%   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_2}}
+%   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_3}}
+%   \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2009_4}}
+%   \caption{Four frames $f=10, 25, 35, 75$ from the PETS2009 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames}\willie{these are old images!... haven't replaced yet}}
+%   \label{fig:pets2009_imgs}
+% \end{figure}
 
-\subsection{New Video Datasets}
 
-The two video datasets in this section are video datasets first used in this paper. The datasets and groundtruth detailing the positions of each obect in each video will be published online.
+% \begin{figure}
+% 	\centering
+% 	\includegraphics[width=3in]{../img/pets2009_results}
+% 	% \subfloat[]{\includegraphics[width=0.52\textwidth]{../img/pets2001_results_1}}
+% 	% \subfloat[]{\includegraphics[width=0.48\textwidth]{../img/pets2001_results_2}}
+% 	\caption{Sample from posterior of the state for the PETS2009 dataset, where color represents assignment and the mean and standard deviation are shown. \willie{will show assignments by marker type in addition to color}}
+% 	\label{fig:pets2009_results}
+% \end{figure}
 
-\subsubsection{Ants Video?}
+% \subsection{New Video Datasets}
 
-\subsubsection{Cells Video?}
+% The two video datasets in this section are video datasets first used in this paper. The datasets and groundtruth detailing the positions of each obect in each video will be published online.
+
+% \subsubsection{Ants Video?}
+
+% \subsubsection{Cells Video?}
 
 
 
