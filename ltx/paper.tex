@@ -262,7 +262,7 @@ The goal of dependent Dirichlet process mixtures (DDPMs) is to allow modeling of
 
 To account for the dependent behavior of data, research has been conducted on developing models involving a sequence of DPMs, where components of the mixtures are dependent upon (or may be considered `tied to') corresponding components at neighboring positions in the sequence. For example, if the data shows temporal dependence, the goal might be to create a sequence of DPMs, one for each time-step, where the components of the mixture at each step are dependent upon corresponding components in the both the following and previous time steps \willie{cite some of these}.
 
-More rigorously, we take the definition of a DDPM to be a stochastic process defined on the space of probability distributions over a domain, which are indexed by time, space, or a selection of other covariates in such a way that the marginal distribution at any point in the domain follows a Dirichlet process (adapted from definitions found in \willie{cite griffin and steel and gasthaus-thesis}). Hence, a time-dependent DDPM is a model which remains a Dirichlet process, marginally, at each time step, yet allows cluster parameters at a given time step to vary from (and remain dependent upon) the parameters in neighboring time steps.
+More rigorously, we take the definition of a DDPM to be a stochastic process defined on the space of probability distributions over a domain, which are indexed by time, space, or a selection of other covariates in such a way that the marginal distribution at any point in the domain follows a Dirichlet process (adapted from definitions found in \cite{gasthaus_thesis} and \cite{griffin2006order}). Hence, a time-dependent DDPM is a model which remains a Dirichlet process, marginally, at each time step, yet allows cluster parameters at a given time step to vary from (and remain dependent upon) the parameters in neighboring time steps.
 
 
 
@@ -275,39 +275,40 @@ The GPUDDPM, when applied to data over T discrete time steps, can be viewed as a
 
 A transition kernel $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ specifies how mixture component parameters in time step $t$ are dependent upon associated mixture component parameters in time step $t-1$. One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ (note that the transition kernel is a markov chain). 
 
-Recall that the distribution over the cluster assignments $c_{i}$ (one for each observation $i$) is a function of the cluster sizes (see \eqref{crp_rep}). Hence, to account for varying numbers of clusters--and in particular, to allow clusters to diminish in size (i.e. reduce the number of assigned observations) and even die--there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered `removed' from their assigned clusters at a given time step and value of $m_{k}$ (defined in \eqref{crp_rep} to be the size of cluster $k$) is reduced.
+Recall that the distribution over the cluster assignments $c_{i}$ (one for each observation $i$) is a function of the cluster sizes (see \eqref{crp_rep}). Hence, to account for varying numbers of clusters--and in particular, to allow clusters to diminish in size (i.e. reduce the number of assigned observations) and even die--there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered ``removed'' from their assigned clusters at a given time step and value of $m_{k}$ (defined in \eqref{crp_rep} to be the size of cluster $k$) is reduced.
 
-The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each (remaining) assignment is `removed' from its cluster with probability $\rho$. We can consider the size $m_{k,t}$ of cluster $k$ at time $t$ to be dependent upon the cluster size at time $t-1$ via a deletion step. In fact, it can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the cluster size $m_{k,t}$ by $r$. This can be written as 
+The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each (remaining) assignment is removed from its cluster with probability $\rho$. We can consider the size $m_{k,t}$ of cluster $k$ at time $t$ to be dependent upon the cluster size at time $t-1$ via a deletion step. It can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the cluster size $m_{k,t}$ by $r$. This can be written as 
 \begin{equation}
 \label{del_step}
 m_{k,t} | m_{k,t-1}   \sim   m_{k,t-1}-\text{Binomial}(m_{k,t-1}, \rho)
 \end{equation}
-with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented \cite{caron_2007}. For a given time $t$ and cluster $k$, the size $m_{k,t}$ is dependent upon the cluster size at the previous time step (via \eqref{del_step}) and on the assignments for observations at time $t$ ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). We refer to this distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL. Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$ and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
-			% \begin{align}
-			% \begin{split}
-			% 	x_{i}^{(t)} | c_{i}^{(t)}, \theta_{c_{i}^{(t)}}^{(t)} &\sim F(\theta_{c_{i}^{(t)}}^{(t)}) \\
-			% 	c_{i}^{(t)} | m^{(t-1)}, \alpha  &\sim  \text{CRP}(m^{(t-1)}, \alpha) \\
-			% 	m^{(t-1)} | m^{(t-2)}, c_{i}^{(t-1)}  &\sim \text{DEL}(m^{(t-2)}, c_{i}^{(t-1)}, \rho, \gamma) \\
-			% 	\theta_{k}^{(t)} | \theta_{k}^{(t-1)}   &\sim 
-			% \begin{cases}
-			% 	P(\theta_{k}^{(t)} | \theta_{k}^{(t-1)}) \\
-			% 	\mathbb{G}_{0}
-			% \end{cases}
-			% \end{split}
-			% \end{align}
+with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented \cite{caron_2007}. For a given time $t$ and cluster $k$, the size $m_{k,t}$ is dependent upon the cluster size at the previous time step (via \eqref{del_step}) and on the assignments $c_{i}$ for observations at time $t$. We refer to this distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL. Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$,  % and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
 \begin{align}
 \begin{split}
-	\bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t}) \\
-	c_{i} | \bold{m}_{i-1}, \alpha  &\sim  \text{CRP}(\bold{m}_{i-1}, \alpha) \\
-	\bold{m}_{1} | \bold{m}_{N_{t-1}}, \rho  &\sim \text{DEL}(\bold{m}_{N_{t-1}}, \rho) \\
-	\theta_{t} | \theta_{t-1}   &\sim 
+\bold{m}_{t} | \bold{m}_{t-1}, \rho  &\sim \text{DEL}(\bold{m}_{t-1}, \rho) \\
+c_{i} | \bold{m}_{t}, \alpha  &\sim  \text{CRP}(\bold{m}_{t}, \alpha) \\
+\theta_{c_{i}, t} | \theta_{c_{i}, t-1}   &\sim
 \begin{cases}
-	P(\theta_{t} | \theta_{t-1}) \\
+	P(\theta_{c_{i}, t} | \theta_{c_{i}, t-1}) \\
 	\mathbb{G}_{0}
-\end{cases}
+\end{cases} \\
+\bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t})
 \end{split}
 \end{align}
-where $\text{CRP}(\cdot, \cdot)$ is given in \eqref{crp_rep}. The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
+where $\text{CRP}(\cdot, \alpha)$ is given in \eqref{crp_rep}. The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}. The above formulation holds if there is exactly one observation at each time step. Often, the data extracted from objects in videos consists of multiple observations at each time step, each with an assignment variable ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). If we allow for multiple observations $i \in \{ 1, \ldots, N_{t} \}$ at each time $t$, this formulation becomes,
+\begin{align}
+\begin{split}
+\bold{m}_{t}^{1} | \bold{m}_{t-1}^{N_{t-1}}, \rho  &\sim \text{DEL}(\bold{m}_{t-1}^{N_{t-1}}, \rho) \\
+c_{i} | \bold{m}_{t}^{i-1}, \alpha  &\sim  \text{CRP}(\bold{m}_{t}^{i-1}, \alpha) \\
+\theta_{c_{i}, t} | \theta_{c_{i}, t-1}   &\sim
+\begin{cases}
+	P(\theta_{c_{i}, t} | \theta_{c_{i}, t-1}) \\
+	\mathbb{G}_{0}
+\end{cases} \\
+\bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t})
+\end{split}
+\end{align}
+where $\bold{m}_{t}^{i}$ represents the $i^{\text{th}}$ observation at time $t$. 
 
 \begin{figure}[h]
         \center{\includegraphics[width=90mm]{../img/gpuddp_gm_1.pdf}}
@@ -380,10 +381,11 @@ Frame differencing is unsophisticated, computationally inexpensive, able to be a
   \subfloat[]{\label{fig:traffic2_img}\includegraphics[width=0.328\textwidth]{../img/traffic2_frame1.png}} 
   \subfloat[]{\label{fig:traffic2_img2}\includegraphics[width=0.328\textwidth]{../img/traffic2_frame2.png}}
   \subfloat[]{\label{fig:traffic2_img_framediff}\includegraphics[width=0.3273\textwidth]{../img/traffic2_framediff.png}}\\
-    \subfloat[]{\label{fig:pets2009_img}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame1.png}} 
+  \subfloat[]{\label{fig:pets2009_img}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame1.png}} 
   \subfloat[]{\label{fig:pets2009_img2}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame2.png}}
-  \subfloat[]{\label{fig:pets2009_img_framediff}\includegraphics[width=0.333\textwidth]{../img/pets2009_framediff.png}}
-  \caption{(a., b.) Consecutive frames of a video containing four ants. (c.) Extraction results produced by taking the pixel-wise difference between these frames}
+  \subfloat[]{\label{fig:pets2009_img_framediff}\includegraphics[width=0.333\textwidth]{../img/pets2009_framediff.png}}\\
+  \subfloat[]{\label{fig:longimg}\includegraphics[width=1.05\textwidth]{../img/longimg_6.pdf}} 
+  \caption{Pairs of consecutive frames and the results produced by taking the pixel-wise difference between these frames. \willie{Want to add colorbar that explains how color represents frame number red = frame 1, blue = frame 100}}
   \label{fig:img_and_framediff}
 \end{figure}
 
