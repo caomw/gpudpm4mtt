@@ -1,6 +1,5 @@
-
+\documentclass[smallcondensed, final]{svjour3}
 % \documentclass[smallcondensed, final, numbook]{svjour3}[12/23/2011]
-\documentclass[smallcondensed, final]{svjour3}[12/23/2011]
 % \documentclass[twocolumn, final]{svjour3}
 
 
@@ -27,6 +26,7 @@
 
 \title{Unsupervised Detection and Tracking of Multiple Objects with Dependent Dirichlet Process Mixtures}
 \titlerunning{Unsupervised Object Detection and Tracking with Dependent Dirichlet Processes}
+\authorrunning{Willie Neiswanger and Frank Wood}
 % \subtitle{A Bayesian Nonparametric Approach to Tracking Multiple Objects in Videos}
 % \subtitle{Subtitle?}
 \author{Willie Neiswanger$^{*}$ and Frank Wood$^{\dagger}$}
@@ -39,11 +39,11 @@
 	Tel.: 212-851-2150. 
 	\email{fwood@stat.columbia.edu}}
 \date{}
+
 \maketitle
-% \mbox{}
 
 \begin{abstract}
-This paper proposes an unsupervised technique for the detection and tracking of arbitrary objects in videos. This method is intended to reduce the need for explicit target localization and serve as a general framework applicable to videos with varied object types, backgrounds, and film qualities. The technique uses a dependent Dirichlet process mixture (DDPM) known as the Generalized Polya Urn (GPUDDPM) to model image pixel data that can be extracted in a general manner from the regions in a video that represent objects. This paper describes a specific implementation of the model using spatial and color pixel data extracted via frame differencing and gives two algorithms for performing inference on the model to accomplish detection and tracking. This technique is demonstrated on multiple synthetic and benchmark video datasets that illustrate its ability to, without modification, detect and track variety of objects with diverse physical charactersitics over non-uniform backgrounds and through occlusion.
+This paper proposes an unsupervised technique for the detection and tracking of arbitrary objects in videos. It is intended to reduce the need for detection or localization methods tailored to specific objects and serve as a general framework applicable to videos with varied object types, backgrounds, and film qualities. The technique uses a dependent Dirichlet process mixture (DDPM) known as the Generalized Polya Urn (GPUDDPM) to model image pixel data that can be extracted in a general manner from the regions in a video that represent objects. This paper describes a specific implementation of the model using spatial and color pixel data extracted via frame differencing and gives two algorithms for performing inference on the model to accomplish detection and tracking. This technique is demonstrated on multiple synthetic and benchmark video datasets that illustrate its ability to, without modification, detect and track variety of objects with diverse physical charactersitics over non-uniform backgrounds and through occlusion.
 % \keywords{Object Detection \and Tracking \and Bayesian Nonparametrics \and Multiple Target Tracking}
 \end{abstract}
 
@@ -846,9 +846,10 @@ Groundtruth for the synthetic videos
 
 \begin{figure}
   \centering               
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/synth1_bounce.pdf}}
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/synth1_cross.pdf}}
-  \caption{Each plot shows a sample from the posterior distribution of the state for one of the videos in synthetic experiment one, where the time axis ascends vertically, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. In both cases, the two objects are successfully tracked through occlusion, though both objects reverse their directions in the second video. \willie{will show assignments by marker type in addition to color}}
+  \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth1_cross.pdf}}
+  \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth1_bounce.pdf}}
+  \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth4.pdf}}
+  \caption{Each plot shows a sample from the posterior distribution of the state for one of the videos in synthetic experiment one, where the time axis ascends vertically, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. In both cases, the two objects are successfully tracked through occlusion, though both objects reverse their directions in the second video.}
   \label{fig:synth_one_plot}
 \end{figure}
 
@@ -907,6 +908,32 @@ Due to the computation required for the MCMC batch inference method (discussed f
 	\subfloat[]{\includegraphics[width=0.42\textwidth]{../img/pets2000_4objects.png}}
 	\caption{Extracted data and a sample from posterior of the model (a) overlaid on a frame from the PETS2000 video (b).}
 	\label{fig:pets2000_results}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_front.pdf}}             
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_back.pdf}}
+  \caption{PETS2000 dataset results (a) and PETS2001 dataset results (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denots time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+  \label{fig:benchmark_results}
+\end{figure}
+
+% \begin{figure}
+%   \centering               
+%   \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_front.pdf}}
+%   \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_back.pdf}}
+%   \caption{PETS2000 dataset results, from a front view (a) and a back view (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denots time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+%   \label{fig:pets2000_results}
+% \end{figure}
+
+\begin{figure}
+  \centering               
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f1.pdf}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f3.pdf}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f5.pdf}}
+  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f7.pdf}}
+  \caption{PETS2001 results.  \willie{add tails. different color ovals for different objects.}}
+  \label{fig:pets2001_overlay}
 \end{figure}
 
 To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{sec:inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
