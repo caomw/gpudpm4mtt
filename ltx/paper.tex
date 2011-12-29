@@ -165,6 +165,7 @@ Examples of additional features that could potentially be extracted from object-
 
 We will use the phrase ``baseline'' three-dimensional extraction data to refer to the features $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ of pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number $t$, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure~\ref{fig:baselinedata}. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
 
+% frank says the following worm figures are a no go
 % \begin{figure}[h]
 %   \centering
 %   \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2001_data_1.png}} 
@@ -616,7 +617,7 @@ The posterior distribution of each of the auxiliary variables $z_{k,t,m}$ can be
 \begin{equation}
 P(z_{k,t,m} | state) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
 \end{equation}
-This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample. The M-H algorithm is outlined in Algorithm~\ref{alg:MH}. \willie{am i citing wrong?}
+This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample. The M-H algorithm is outlined in Algorithm 1.%Algorithm~\ref{alg:MH}. \willie{am i citing wrong?}
 
 \begin{algorithm}[h!]
 \label{alg:MH}
@@ -666,7 +667,7 @@ and accept or reject this sample using the standard M-H acceptance ratio \willie
 
 
 \subsubsection{Initializing the Sampler}
-Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can theoretically be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference.
+Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference.
 
 
 
@@ -789,16 +790,19 @@ The problem of finding a mapping between a video's ground-truth tracks and an al
 
 \subsubsection{SFDA and ATA}
 
-The two metrics used to quantify performance in this study are known as the the Sequence Frame Detection Accuracy (SFDA) and the Average Tracking Accuracy (ATA). These metrics were developed during VACE Phase II to provide a single, comprehensive metric to describe detection, and one to describe tracking.
-
-The following terms are used in the definitions of the performance metrics:
+The two metrics used to quantify performance in this study are known as the the Sequence Frame Detection Accuracy (SFDA) and the Average Tracking Accuracy (ATA). These metrics were developed during VACE Phase II to provide a single, comprehensive metric to describe detection, and one to describe tracking. The following are used in the definitions of the performance metrics:
 \begin{itemize}
 \renewcommand{\labelitemi}{$\bullet$}
 \item $G_{i}$ denotes the spatiotemporal region occupied by the $i$th ground-truth object in a video, and $G_{i}^{(t)}$ denotes the region occupied by the $i$th ground-truth object in frame $t$.
+\vspace{2mm}
 \item $D_{i}$ denotes the spatiotemporal region occupied by the $i$th detected object in a video, and $D_{i}^{(t)}$ denotes the region occupied by the $i$th detected object in frame $t$.
+\vspace{2mm}
 \item $N_{G}$ denotes the total number of unique ground-truth objects in a video, and $N_{G}^{(t)}$ denotes the number of unique ground-truth objects present at frame $t$.
+\vspace{2mm}
 \item $N_{D}$ denotes the total number of unique detected objects in a video, and $N_{D}^{(t)}$ denotes the number of unique detected objects present at frame $t$.
+\vspace{2mm}
 \item $N_{\text{frames}}$ denotes the total number of frames in a video, and $N_{\text{frames}}^{(i)}$ denotes the number of frames in which an object $i$ (which can be a ground-truth or detected object, depending on the context) is present in a video.
+\vspace{2mm}
 \item $N_{\text{mapped}}$ denotes the number of mapped ground-truth/detect pairs in a video, and $N_{\text{mapped}}^{(t)}$ denotes the number of mapped ground-truth/detect pairs present at frame $t$.
 \end{itemize}
 
@@ -835,32 +839,29 @@ The ground-truth authored by the ViPER tool took the form of bounding boxes deno
 Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction procedure described in Section~\ref{sec:modelspec_extraction} (using $L=3$) and inference procedures described in \ref{sec:inference} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:inference_to_results}).
 
 
-\subsubsection{Tracking by Appearance}
+% \subsubsection{Tracking by Appearance}
 
 The first synthetic video experiment aimed to test the ability of the model and inference procedure to maintain the identity of independent objects based on color information alone. Two videos were constructed, both containing a red square (rgb value $[255,0,0]$ and size $20$ x $20$ pixels) and a blue square (rgb value $[0,0,255]$ and size $20$ x $20$ pixels). In both videos, the squares begin at opposite sides of the scene at frame $f=1$ and travel towards each other, arriving at the same location at $f=100$ (where the blue square occludes the red square). The second half of the two videos differ in that both squares in the first video continue in the same direction and end at the other's starting positions at $f=200$, and both squares in the second video reverse directions and end at their initial starting positions at $f=200$. The frame difference extraction yields identical spatial features in both videos; hence, successful tracking depends fully on the incorporation of color information into the model.
 
 Parameters were set to the same values for inference on both videos, using the method outlined in Section~\ref{sec:parameter_recap} to choose parameters. The chosen values were $\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$. Inference was carried out using the MCMC algorithm (Section~\ref{sec:MCMC}); the posterior sample taken as the result correctly tracked both colored squares through occlusion in both videos, and is shown in Figure~\ref{fig:synth_one_plot}. \willie{still need to include performance metric results for these synthetic datasets.}.
 
-Groundtruth for the synthetic videos 
-
-
 \begin{figure}
   \centering               
-  \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth1_cross.pdf}}
-  \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth1_bounce.pdf}}
-  \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth4.pdf}}
+  \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth1_cross.pdf}} \hspace{0.5mm}
+  \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth1_bounce.pdf}} \hspace{0.5mm}
+  \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth4.pdf}}
   \caption{Each plot shows a sample from the posterior distribution of the state for one of the videos in synthetic experiment one, where the time axis ascends vertically, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. In both cases, the two objects are successfully tracked through occlusion, though both objects reverse their directions in the second video.}
   \label{fig:synth_one_plot}
 \end{figure}
 
 
-
-
-\subsubsection{Tracking though Occlusion and Appearance Shift}
+% \subsubsection{Tracking though Occlusion and Appearance Shift}
 
 The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
 
 Parameter values were chosen in the same way, and set to the same values, as the first synthetic experiment. The MCMC inference algorithm correctly tracked all three objects through occlusion and inferred the appearance and size shifts. Figure~\ref{fig:synth2_alphaimg} shows a sample from the posterior distribution of the cluster parameters, where the mean and oval representation of the covariance matrix (with $0.5$ confidence value) are overlayed on the data. The data is plotted in three dimensional space, where time is represented on the vertical axis, and each data point is colored by its assignment to one of the three inferred clusters. Both the cluster parameter sample and data are overlaid on three semi-transparent planes showing the objecs in the video in three frames. \willie{still need to include performance metric results for this synthetic dataset}.
+
+Groundtruth for the synthetic videos 
 
 % \begin{figure}
 %   \centering               
@@ -871,10 +872,10 @@ Parameter values were chosen in the same way, and set to the same values, as the
 %   \label{fig:synth_two_plot}
 % \end{figure}
 
-\begin{figure}[h]
-        \center{\includegraphics[width=65mm]{../img/synth2_alphaimg_hd.png}}
-        \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. Both the sample and data are overlaid on three images from synthetic experiment. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
-\end{figure}
+% \begin{figure}[h]
+%         \center{\includegraphics[width=65mm]{../img/synth2_alphaimg_hd.png}}
+%         \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two, where color represents assignment and the mean and standard deviation are shown. Both the sample and data are overlaid on three images from synthetic experiment. The three objects of time varying size, speed, and position are tracked through simultaneous occlusion.  \willie{will show assignments by marker type in addition to color}}
+% \end{figure}
 
 % \begin{figure}[h]
 %         \center{\includegraphics[width=0.99\textwidth]{../img/synth2_alphaimg_hd.png}}
@@ -895,48 +896,40 @@ Benchmark video datasets for object tracking and detection have been produced to
 
 The PETS2000 and PETS2001 video datasets both consist of a small number of humans and vehicles traveling across a parking lot, with video taken from above, emulating what might be recorded by standard outdoor surveillance equipment. The `Test Sequence', a set of images from a monocular, stationary camera, was used from the PETS2000 workshop, and View Two of Dataset 1, also taken via a monocular, stationary camera, was used from the PETS2001 workshop. The MCMC algorithm (described in Section~\ref{sec:MCMC}) was used for inference in these experiments.
 
-Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results for the PETS2000 dataset are displayed in Figure~\ref{fig:pets2000_results} and for the PETS2001 dataset in Figure~\ref{fig:pets2001_alphaimg}; in these figure, a sample from the posterior of the cluster parameters is overlayed the data and video frames at three points in time, where the data is colored by assignment. \willie{also show pets 2001 result and per-frame overlays for both}.
+Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used. Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results for the PETS2000 dataset are displayed in Figure~\ref{fig:pets2000_results} and for the PETS2001 dataset in Figure~\ref{fig:pets2001_results}; in these figure, a sample from the posterior of the cluster parameters is overlayed on the extracted data over a sequence of frames, where the assignment of each data point is represented by color and marker type.
+
+
 
 \begin{figure}[h]
-        \center{\includegraphics[width=65mm]{../img/pets2001_alphaimg_hr.png}}
-        \caption{\label{fig:pets2001_alphaimg} Extracted data and sample from posterior of the model overlaid on three frames from the PETS2001 video.}
-\end{figure}
-
-\begin{figure}[h]
-	\centering
-	\subfloat[]{\includegraphics[width=0.58\textwidth]{../img/pets2000_results_1}}
-	\subfloat[]{\includegraphics[width=0.42\textwidth]{../img/pets2000_4objects.png}}
-	\caption{Extracted data and a sample from posterior of the model (a) overlaid on a frame from the PETS2000 video (b).}
-	\label{fig:pets2000_results}
-\end{figure}
-
-\begin{figure}
   \centering
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_front.pdf}}             
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_back.pdf}}
-  \caption{PETS2000 dataset results (a) and PETS2001 dataset results (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denots time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
-  \label{fig:benchmark_results}
+  \subfloat[]{\label{fig:pets2000_results} \includegraphics[width=0.48\textwidth]{../img/pets2000_front.pdf}} \hspace{1mm}           
+  \subfloat[]{\label{fig:pets2001_results} \includegraphics[width=0.48\textwidth]{../img/pets2001_back.pdf}}
+  \caption{PETS2000 dataset results (a) and PETS2001 dataset results (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denotes time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+  \label{fig:benchmark_results_1}
 \end{figure}
 
-% \begin{figure}
-%   \centering               
-%   \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_front.pdf}}
-%   \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_back.pdf}}
-%   \caption{PETS2000 dataset results, from a front view (a) and a back view (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denots time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
-%   \label{fig:pets2000_results}
-% \end{figure}
+\begin{figure}[h]
+  \centering             
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f1}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f4}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f9}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f11}}
+  \caption{Four frames from the PETS2000 sequence with one posterior sample mean and covariance matrix representation shown for each frame (and for the previous 20 frames).}
+  \label{fig:pets2001_imgs}
+\end{figure}
 
 \begin{figure}
   \centering               
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f1.pdf}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f3.pdf}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f5.pdf}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_f7.pdf}}
-  \caption{PETS2001 results.  \willie{add tails. different color ovals for different objects.}}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f1.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f3.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f5.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f8.pdf}}
+  \caption{Four frames from the PETS2001 sequence with one posterior sample mean and covariance matrix representation shown for each frame (and for the previous 20 frames).}
   \label{fig:pets2001_overlay}
 \end{figure}
 
 To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{sec:inference_to_results}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
+
 
 
 \begin{figure}[h]
@@ -948,16 +941,36 @@ To calculate performance metrics (both SFDA and ATA), one must specify a confide
 \end{figure}
 
 \begin{figure}[h]
-  \centering             
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_1}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_2}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_3}}
-  \subfloat[]{\includegraphics[width=0.25\textwidth]{../img/pets2001_4}}
-  \caption{Four frames $f=25, 35, 45, 55$ from the PETS2001 sequence with one posterior sample mean and covarance matrix overlaid. \willie{will show path trail over prev 10 frames.} \willie{These are old images!... haven't replaced yet}}
-  \label{fig:pets2001_imgs}
+	\centering
+    \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth2_alphaimg_hd.png}}
+    \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2001_alphaimg_hr.png}}
+	\subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2000_4objects.png}}
+    \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two (a), and benchmark datasets PETS2001 (b) and PETS2000 (c), where color represents assignment and the mean and standard deviation are shown. In each plot, the sample and data are overlaid on three images from the experiment.}
 \end{figure}
 
 
+% old figure ideas:
+
+% \begin{figure}[h]
+%         \center{\includegraphics[width=65mm]{../img/pets2001_alphaimg_hr.png}}
+%         \caption{\label{fig:pets2001_alphaimg} Extracted data and sample from posterior of the model overlaid on three frames from the PETS2001 video.}
+% \end{figure}
+
+% \begin{figure}[h]
+% 	\centering
+% 	\subfloat[]{\includegraphics[width=0.58\textwidth]{../img/pets2000_results_1}}
+% 	\subfloat[]{\includegraphics[width=0.42\textwidth]{../img/pets2000_4objects.png}}
+% 	\caption{Extracted data and a sample from posterior of the model (a) overlaid on a frame from the PETS2000 video (b).}
+% 	\label{fig:pets2000_results}
+% \end{figure}
+
+% \begin{figure}
+%   \centering               
+%   \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_front.pdf}}
+%   \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_back.pdf}}
+%   \caption{PETS2000 dataset results, from a front view (a) and a back view (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denots time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+%   \label{fig:pets2000_results}
+% \end{figure}
 
 
 \subsubsection{PETS2009/2010}
@@ -968,8 +981,18 @@ Due to the large number of frames and objects in this video, the SMC algorithm (
 
 Extraction was performed with frame differencing as described in Section~\ref{sec:modelspec_extraction}, using $L=3$ and parameters for the model were chosen, using the method outlined in Section~\ref{sec:parameter_recap}, to be $\alpha = 0.1, \rho = 0.8, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 6, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (3, \ldots, 3)$. Additionally, as with the other video datasets, ground-truth bounding boxes around each object were authored using the ViPER tool.
 
-The SMC inference algorithm yielded a sample from the posterior distribution, from which the object detection and tracking results were obtained (as described in Section~\ref{sec:inference_to_results}). Figure \willie{provide figure showing PETS2009 results} shows a sample from the posterior of the cluster parameters overlayed on the data, and video frames at three points in time, where the data is colored by assignment
-\willie{show SFDA and ATA vs cov mat conf for this sample that I show figures for.}
+The SMC inference algorithm yielded a sample from the posterior distribution, from which the object detection and tracking results were obtained (as described in Section~\ref{sec:inference_to_results}). In Figure \ref{fig:pets2009_results}, a sample from the posterior of the cluster parameters is overlayed on the extracted data over a sequence of frames, where the assignment of each data point is represented by color and marker type.
+
+\begin{figure}[h]
+  \centering
+  % \subfloat[]{\label{fig:pets2009_results} \includegraphics[width=0.7\textwidth]{../img/pets2009_1-50_front.pdf}}
+  \includegraphics[width=0.7\textwidth]{../img/pets2009_1-50_front.pdf}
+  \caption{Results on frames 1-50 of the PETS2009 dataset, showing a sample from the posterior distribution of the state, where the vertical axis denotes time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+  \label{fig:pets2009_results}
+  % \label{fig:benchmark_results_2}
+\end{figure}
+
+
 
 
 
