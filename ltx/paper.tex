@@ -1,6 +1,5 @@
 \documentclass[smallcondensed, final]{svjour3}
-% \documentclass[smallcondensed, final, numbook]{svjour3}[12/23/2011]
-% \documentclass[twocolumn, final]{svjour3}
+% \documentclass[smallcondensed, final]{svjour3}[1/1/2012]
 
 
 \usepackage[square,numbers]{natbib}
@@ -26,52 +25,49 @@
 
 \title{Unsupervised Detection and Tracking of Multiple Objects with Dependent Dirichlet Process Mixtures}
 \titlerunning{Unsupervised Object Detection and Tracking with Dependent Dirichlet Processes}
-\authorrunning{Willie Neiswanger and Frank Wood}
 % \subtitle{A Bayesian Nonparametric Approach to Tracking Multiple Objects in Videos}
-% \subtitle{Subtitle?}
+
 \author{Willie Neiswanger$^{*}$ and Frank Wood$^{\dagger}$}
-\institute{
-	$^{*}$Columbia University, Department of Applied Math and Applied Physics. 
-	Tel.: 503-464-6152.
-	\email{wdn2101@columbia.edu}
-	\and
-	$^{\dagger}$Columbia University, Department of Statistics. 
-	Tel.: 212-851-2150. 
-	\email{fwood@stat.columbia.edu}}
+\authorrunning{Willie Neiswanger and Frank Wood}
+
+\institute{$^{*}$Columbia University, Department of Applied Math and Applied Physics. 
+Tel.: 503-464-6152.
+\email{wdn2101@columbia.edu}
+\and
+$^{\dagger}$Columbia University, Department of Statistics. 
+Tel.: 212-851-2150. 
+\email{fwood@stat.columbia.edu}}
+
 \date{}
 
 \maketitle
 
 \begin{abstract}
-This paper proposes an unsupervised technique for the detection and tracking of arbitrary objects in videos. It is intended to reduce the need for detection or localization methods tailored to specific objects and serve as a general framework applicable to videos with varied object types, backgrounds, and film qualities. The technique uses a dependent Dirichlet process mixture (DDPM) known as the Generalized Polya Urn (GPUDDPM) to model image pixel data that can be extracted in a general manner from the regions in a video that represent objects. This paper describes a specific implementation of the model using spatial and color pixel data extracted via frame differencing and gives two algorithms for performing inference on the model to accomplish detection and tracking. This technique is demonstrated on multiple synthetic and benchmark video datasets that illustrate its ability to, without modification, detect and track variety of objects with diverse physical charactersitics over non-uniform backgrounds and through occlusion.
+This paper proposes a technique for the unsupervised detection and tracking of arbitrary objects in videos. It is intended to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The technique uses a dependent Dirichlet process mixture (DDPM) known as the Generalized Polya Urn (GPUDDPM) to model image pixel data that can be extracted in a general manner from the regions in a video that represent objects. This paper describes a specific implementation of the model using spatial and color pixel data extracted via frame differencing and gives two algorithms for performing inference on the model to accomplish detection and tracking. This technique is demonstrated on multiple synthetic and benchmark video datasets that illustrate its ability to, without modification, detect and track objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion.
 % \keywords{Object Detection \and Tracking \and Bayesian Nonparametrics \and Multiple Target Tracking}
 \end{abstract}
 
 
 
 \section{Introduction}
-% % \subsection{Topic Overview and Terminology}
 
 We define the task of automated detection and tracking of arbitrary objects in videos to be the fulfillment of three actions: determining the spatiotemporal regions of a video that constitute objects (`extraction'), finding the positions and/or shapes of distinct objects (`localization'), and maintaining the identities of the detected objects over time (`tracking'). An ability to carry out these tasks in an automated manner is useful for many fields that make use of video data, including robotics, video surveillance, time-lapse microscopy, and video summarization. Algorithms able to be applied to a variety of objects and video types are particularly desirable. This paper serves to introduce a new technique involving the use of dependent Dirichlet processes mixture models, which we hope will provide the foundation for a class of unsupervised algorithms that can detect and track arbitrary objects in a wide range of videos.
 
-Research in the past ten years involving the development of methods for general detection and tracking of objects has tended to focus on one of either extraction, localization, or tracking; attempts to integrate all three tasks and produce a system aimed at multiple arbitrary objects and diverse video types was not often a primary focus, or was attempted in an ad-hoc manner to test or apply a more specific technique. Research aimed at developing methods to accomplish the three tasks in a cohesive manner has been pursued more recently to produce algorithms that can, in a fully automated way, accomplish unsupervised detection and tracking---or in short, that can determine the spatiotemporal region of a video occupied by each distinct object. A widely applied, though unsophisticated, example of general detection and tracking is the technique of blob tracking. Blob tracking typically refers to methods that perform extraction and localization of objects at each frame independently---for example, by assuming that pixels representing an object are distinguishable from pixels representing the background via color, motion, or texture information, and segmenting the extracted data at each frame into ``blobs'' to accomplish localization. A number of tracking techniques based on finding blobs in consecutive frames of a video with similar locations and appearances have been attempted to maintain the identity of detected blobs over time. The main challenges, however, associated with blob tracking involve the difficulty of segmenting neighboring or occluding objects in a given frame \cite{zhao2004tracking} and preventing multiple tracked blobs from collapsing onto and tracking a single object \cite{vermaak_2003}. These difficulties stem from the typical blob tracker's need to perform detection via segmentation on individual frames and lack of a principled way to perform tracking while resisting the collapse of independent tracks.
+Research in the past ten years involving the development of methods for general detection and tracking of objects has tended to focus on one of either extraction, localization, or tracking; attempts to integrate all three tasks and produce a system aimed at multiple arbitrary objects and diverse video types was not often a primary focus, or was attempted in an ad-hoc manner to test or apply a more specific technique. Research aimed at developing methods to accomplish the three tasks in a cohesive manner has been pursued more recently to produce algorithms that can, in a fully automated way, accomplish unsupervised detection and tracking---or in short, that can determine the spatiotemporal region of a video occupied by each distinct object. A widely applied, though unsophisticated, example of general detection and tracking is the technique of blob tracking. Blob tracking typically refers to methods that perform extraction and localization of objects at each frame independently---for example, by assuming that pixels representing an object are distinguishable from pixels representing the background via color, motion, or texture information, and segmenting the extracted data at each frame into ``blobs'' to accomplish localization. A number of tracking techniques based on finding blobs in consecutive frames of a video with similar locations and appearances have been attempted to maintain the identity of detected blobs over time. The main challenges, however, associated with blob tracking involve the difficulty of segmenting neighboring or occluding objects in a given frame \cite{zhao2004tracking} and preventing multiple tracked blobs from collapsing onto and tracking a single object \cite{vermaak_2003}. These difficulties stem from the typical blob tracker's need to perform detection via segmentation on individual frames and lack of a principled way to perform tracking of multiple objects while resisting the collapse of independent tracks.
 
-This paper presents the use of a Bayesian nonparametric mixture model for general, unsupervised multiple object detection and tracking. This method is intended to provide a widely applicable way to detect arbitrary objects in videos---particularly in cases where frame-by-frame segmentation is difficult or video quality is low and extraction is noisy---and better maintain the isolation of independent objects during tracking. Specifically, this work describes how a Dirichlet process mixture model can accomplish these goals when it is applied to data that may be extracted in a general manner from videos. We will demonstrate how to extract data from objects in videos and how this generative model allows for automated detection and tracking. The model is first presented in an abstract form, to allow it to be used with arbitrary extraction procedures and object appearance representations that may be desired in future studies. We then formulate a specific model for data gained during a basic extraction procedure and describe inference algorithms that allow object localization and tracking to be carried out. We demonstrate our implementation on a number of synthetic and benchmark datasets and describe and compute performance metrics to quantify results. 
+This paper presents the use of a Bayesian nonparametric mixture model for general, unsupervised multiple object detection and tracking. This method is intended to provide a widely applicable way to detect arbitrary objects in videos---particularly in cases where frame-by-frame segmentation is difficult or video quality is low and extraction is noisy---and better maintain the isolation of independent objects during tracking. Specifically, this work describes how a Dirichlet process mixture model can accomplish these goals when it is applied to data that may be extracted in a general manner from videos. We will demonstrate how to perform this extraction and how this generative model allows for automated detection and tracking. The model is first presented in an abstract form, to allow it to be used with arbitrary extraction procedures and object appearance representations that may be desired in future studies. We then formulate a specific model for data gained during a basic extraction procedure and describe inference algorithms that allow object localization and tracking to be carried out. We demonstrate our implementation on multiple synthetic and benchmark datasets and compute a few standard performance metrics for each to quantify results. 
 
 
 \subsection{Related Work}
 \label{sec:relatedwork}
 
-
 Related work involves studies related to extraction procedures, localization techniques, single and multiple object tracking methods, and combination methods for joint object detection and tracking.
 
-Extraction is related to the tasks of foregound segmentation, background modeling, motion detection, and appearance feature extraction. In general, these methods aim to extract features from regions of a video frame that are considered objects or are distinguished in some way from the background of a scene. Areas of research in this field include attempts to handle situations where the background displays motion or other dynamic characteristics, reduce noise caused by the false extraction of backgrounds, handle abberant image effects present in some videos, and operate accurately on scenes involving illumination changes. These procedures can usually be classified as either model-based methods or heuristic-based methods. Model-based methods emphasize the detection of shapes of regions containing objects accurately and reducing background noise. For example, foreground extraction has been robustly carried out by modeling each pixel over time in order to infer a probability distribution over pixel values; if the pixel takes on a very unlikely value at a future time, it is marked as a foreground pixel at that point \citep{stauffer_1999, elgammal_2000, elgammal_2002}. Note that these techniques treat each pixel independently; this has a tendency to cause errors in foreground detection, resulting in fragmentation of foreground images (which is problematic as many of these methods intend to blob the foreground objects after detection in order to perform segmentation and locate objects' centroids). Heuristic-based methods perform extracting by looking for temporal changes in pixel value characteristics. These methods are often less accurate than model-based methods, but also far less computationally expensive. Frame differencing and background subtraction are two such methods, and involve comparing pixel values, or groups of pixel values, between two images, to detect a change surpassing some threshold. The goal of these techniques is to find locations in a scene that display motion, and to deem these moving areas the foreground of a scene.  Often, background subtraction refers to comparing an image containing targets with an image of the background without targets or with some model of the background that is learned as the video progresses (in these cases, objects that do not move throughout a scene will be treated as the background), while frame or image differencing refers to comparing two subsequent images in a video. Frame differencing has been used as the sole extraction method for object localization or tracking schemes with success \citep{pece_2002, beleznai_2006, chu_2007}, and also as a secondary data extraction method to help improve the accuracy of object tracking schemes \citep{perez_2002}. In addition to the two techniques mentioned above, there exist other ways of extracting movement from an image, such as through techniques involving optical flow (a calculation based on the `generalized gradient model' of an image, which attempts to capture the speed and direction of movement over areas in the image) \citep{horn_1981, bobick_2001}. In \citep{black_2000}, a motion detection and object tracking method is developed based on the relative motion of moving objects' boundaries, which are again found through analysis of optical flow.
+Extraction is related to the tasks of foregound segmentation, background modeling, motion detection, and appearance feature extraction. In general, these methods aim to extract features from regions of a video frame that are considered objects or are distinguished in some way from the background of a scene. Areas of research in this field include attempts to handle situations where the background displays motion or other dynamic characteristics, reduce noise caused by the false extraction of backgrounds, handle abberant image effects present in some videos, and operate accurately on scenes involving illumination changes. These procedures can usually be classified as either model-based methods or heuristic-based methods. Model-based methods emphasize the detection of shapes of regions containing objects accurately and reducing background noise. For example, foreground extraction has been robustly carried out by modeling each pixel over time in order to infer a probability distribution over pixel values; if the pixel takes on a very unlikely value at a future time, it is marked as a foreground pixel at that point \citep{stauffer_1999, elgammal_2000, elgammal_2002}. Note that these techniques treat each pixel independently; this has a tendency to cause errors in foreground detection, resulting in fragmentation of foreground images (which is problematic as many of these methods intend to blob the foreground objects after detection in order to perform segmentation and locate objects' centroids). Heuristic-based methods perform extracting by looking for temporal changes in pixel value characteristics. These methods are often less accurate than model-based methods, but also less computationally expensive. Frame differencing and background subtraction are two such methods, and involve comparing pixel values, or groups of pixel values, between two images, to detect a change surpassing some threshold. The goal of these techniques is to find locations in a scene that display motion, and to deem these moving areas the foreground of a scene.  Often, background subtraction refers to comparing an image containing targets with an image of the background without targets or with some model of the background that is learned as the video progresses (in these cases, objects that do not move throughout a scene will be treated as the background), while frame or image differencing refers to comparing pairs of consecutive images in a video. Frame differencing has been used as the sole extraction method for object localization or tracking schemes with success \citep{pece_2002, beleznai_2006, chu_2007}, and also as a secondary data extraction method to help improve the accuracy of object tracking schemes \citep{perez_2002}. In addition, there exist other ways of extracting movement from an image, such as through techniques involving optical flow (a calculation based on the `generalized gradient model' of an image, which attempts to capture the speed and direction of movement over areas in the image) \citep{horn_1981, bobick_2001}. In \citep{black_2000}, a motion detection and object tracking method is developed based on the relative motion of moving objects' boundaries, which are again found through analysis of optical flow.
 
-Localization is closely related to the topics of object detection, position-finding, segmentation, and target recognition. These methods are mainly concerned with finding the positions and/or shapes of objects in a given video frame, or with discerning between objects similar in position or appearance. There has been a focus in this field on developing techniques for representing an object's appearance, both to allow for localization of objects on a per-frame basis and to allow for consistent localization of a given object over time. Research into the unsupervised detection of arbitrary objects (which we define as methods that accomplish both extraction and localization) has included work involving image segmentation, parsing, and pixel clustering \willie{must cite here}. These topics usually relate to the automated partitioning of images into meaningful regions. Note that the popular phrase `object detection' is also typically used to refer to procedures that carry out extraction and localization; however, it is often reserved to denote methods that are tailored to find the position of specified objects or object types (as opposed to arbitrary object detection), or to denote supervised methods, where extraction is peformed implicitely during searches for specified objects and localization procedures.
+Localization is related to the topics of object detection, position-finding, segmentation, and target recognition. These methods are mainly concerned with finding the positions and/or shapes of objects in a given video frame, or with discerning between objects similar in position or appearance. There has been a focus in this field on developing techniques for representing an object's appearance, both to allow for localization of objects on a per-frame basis and to allow for consistent localization of a given object over time. Research into the unsupervised detection of arbitrary objects (which we define as methods that accomplish both extraction and localization) has included work involving image segmentation and pixel clustering \willie{must cite here}. These topics usually relate to the automated partitioning of images into meaningful regions. Note that the popular phrase `object detection' is also typically used to refer to procedures that carry out extraction and localization; however, it is often reserved to denote methods that are tailored to find the position of specified objects or object types (as opposed to arbitrary object detection), or to denote supervised methods, where extraction is peformed implicitely during searches for specified objects and localization procedures.
 
-Tracking is related to the topics of video tracking, data association, filtering, point matching, and `tracking of non-rigid objects'. In general, these tasks aim to maintain the localization of the position and/or shape of an object over time. Areas of interest in this field involve developing metrics for judging the similarity between two object representations (for example, potential representations of the same object at adjacent frames in a video), techniques that provide a way to conduct efficient searches over a frame for regions that are similar to a given object, and methods for predicting the future position or appearance of an object. 
-
-Methods for tracking single, non-rigid, objects are numerous. Color, for example, has long been used for tracking. These techniques often operate by modeling an object with some color-based appearance model, and using this model to find the object in subsequent frames. One classic approach involves modeling the color of a target (in particular, a distribution over the hue-saturation space of a target region) with a Gaussian mixture model (GMM), and choosing subsequent target positions by searching surrounding areas for regions that yield similar GMMs. Furthermore, the GMM is often allowed to adapt over time, and slowly change to model changes in lighting or other smooth time-based variations in the target's color \citep{raja_1998, mckenna_1999, jepson_2003}. Additionally, color has been successfully applied as the feature in a technique known a the mean-shift procedure (or the kernel-based method) for tracking \citep{comaniciu_2003, perez_2002, nummiaro_2003, lee_2011}. This procedure---a derivation and overview of which can be found in \citep{fukunaga_1975, cheng_1995}--optimizes the search for the region in a frame which is most similar to a target region in the previous frame. It involves an iterative algorithm that repeatedly shifts each data point to the weighted average of data points in its neighborhood; it has been proven that this process converges for each data point. Additionally, the process (in particular, the specification of the neighborhood and the weight-distribution when calculating the weighted mean of nearby data points) is generalized so that multiple kernels can be specified and used to allow for varied clustering behaviors. It can be shown that, through this procedure, each data point becomes associated with a local point of high density (dependent upon the underlying weight distribution specified by the kernel) which naturally allows for clustering \citep{cheng_1995}. The mean shift algorithm has been implemented successfully to allow for a sort of kernel-based object tracking \citep{comaniciu_2003, comaniciu_1999, comaniciu_2000}.
+Tracking is related to the topics of video tracking, data association, filtering, point matching, and `tracking of non-rigid objects'. In general, these tasks aim to maintain the localization of the position and/or shape of an object over time. Areas of interest in this field involve developing metrics for judging the similarity between two object representations (for example, potential representations of the same object at adjacent frames in a video), techniques that provide a way to conduct efficient searches over a frame for regions that are similar to a given object, and methods for predicting the future position or appearance of an object. Methods for tracking single, non-rigid, objects are numerous. Color, for example, has long been used for tracking; these techniques often operate by modeling an object with some color-based appearance model, and using this model to find the object in subsequent frames. One classic approach involves modeling the color of a target (in particular, a distribution over the hue-saturation space of a target region) with a Gaussian mixture model (GMM), and choosing subsequent target positions by searching surrounding areas for regions that yield similar GMMs. Furthermore, the GMM is often allowed to adapt over time, and slowly change to model changes in lighting or other time-based variations in the target's color \citep{raja_1998, mckenna_1999, jepson_2003}. Additionally, color has been successfully applied as the feature in a technique known a the mean-shift procedure (or the kernel-based method) for tracking \citep{comaniciu_2003, perez_2002, nummiaro_2003, lee_2011}. This procedure---a derivation and overview of which can be found in \citep{fukunaga_1975, cheng_1995}--optimizes the search for the region in a frame which is most similar to a target region in the previous frame. It involves an iterative algorithm that repeatedly shifts each data point to the weighted average of data points in its neighborhood; it has been proven that this process converges for each data point. Additionally, the process (in particular, the specification of the neighborhood and the weight-distribution when calculating the weighted mean of nearby data points) is generalized so that multiple kernels can be specified and used to allow for varied clustering behaviors. It can be shown that, through this procedure, each data point becomes associated with a local point of high density (dependent upon the underlying weight distribution specified by the kernel) which allows for clustering \citep{cheng_1995}. The mean shift algorithm has been implemented successfully to allow for a sort of kernel-based object tracking \citep{comaniciu_2003, comaniciu_1999, comaniciu_2000}.
 
 In addition to single object tracking, a great deal of research in this field over the past decade has focused on the development of algorithms to track multiple objects simultaneously. There has been a particular emphasis on developing ways to deal with problems such as object occlusions (where one object blocks another from the view of a video camera), complex object interactions, object coalescence (where one object is tracked by multiple times/redundantly), objects with similar appearances, variable (and potentially high) numbers of objects, and objects that enter and exit a field of view at different times \willie{cite paper(s) for each of these}.
 
@@ -80,19 +76,14 @@ In the past five years, there has been a push for methods that incorporate detec
 
 
 
-
 % Others have attempted to abstract this work with a non-parametric color modeling approach based on kernel density estimation, which does not assume a specific underlying distribution (such as the Gaussian mixture in the previous case) and instead converges to reasonable distribution that depends on the data \citep{elgammal_2001}. 
 
-
-% Extraction 
-
-
+% Extraction
 % 
 
 % The mean-shift procedure (also known as `kernel-based object tracking') attempts to provide a robust way for non-rigid objects to be tracked. This method is beneficial because it optimizes the search for the `next' position of an object (i.e. the search for the region in a frame which is most similar to a target region in the previous frame). This procedure---a derivation and overview of which can be found in \citep{fukunaga_1975, cheng_1995}--involves an iterative algorithm that repeatedly shifts each data point to the weighted average of data points in its neighborhood; it has been proven that this process converges for each data point. Additionally, the process (in particular, the specification of the neighborhood and the weight-distribution when calculating the weighted mean of nearby data points) is generalized so that multiple kernels can be specified and used to allow for varied clustering behaviors. It can be shown that, through this procedure, each data point becomes associated with a local point of high density (dependent upon the underlying weight distribution specified by the kernel) which naturally allows for clustering \citep{cheng_1995}. The mean shift algorithm has been implemented successfully to allow for a sort of kernel-based object tracking \citep{comaniciu_2003, comaniciu_1999, comaniciu_2000}. Given the current position of an object at a given frame, the goal of tracking is often to find a nearby position in the next frame that has the most similar distribution over some common set of features. Usually this must be done through an exhaustive search, comparing the similarity of distributions at each nearby position with that at the current position. However, if a certain type of `isotropic kernel' (mean-shift kernel) known as the Bhattacharyya coefficient is chosen as a similarity metric between the feature distributions at two positions, it creates a smooth function where gradient descent techniques can be used to quickly converge upon an optimal subsequent position without using an exhaustive search. Many papers are concerned with applying this kernel-based object tracking scheme to different sets of features or with different kernels. Additionally, the scheme has been attempted with an adaptive kernel whose shape, scale, and orientation is influenced by a target being tracked \citep{wang_2004}, with a kernel adjusted by the estimated centroid of a tracked target \citep{mehmood_2009}, and with a heirarchical version of the mean-shift procedure \citep{dementhon_2002}. 
 
 % Some have tried to extent single object tracking schemes to tracking multiple targets; at the most basic level, this involves initializing multiple targets and running an instance of (single) VOT for each, either simultaneously or in succession \citep{perez_2002}. Furthermore, if performed simultaneously, the tracking of each target can be made dependent upon characteristics of other targets (such as their proximity) to resolve errors and improve tracking (such as those caused by the incorrect merging of two targets) \citep{khan_2004, vermaak_2003} . 
-
 
 
 
@@ -115,7 +106,6 @@ In the past five years, there has been a push for methods that incorporate detec
 
 
 
-
 % \subsection{Contributions}
 
 % This paper applies a time dependent Dirichlet process mixture to model data gained during extraction procedures, provides background as to how this Bayesian nonparametric model allows for the incorporation of prior knowledge about object appearances and motion behaviors, describes methods for unsupervised detection and tracking of arbitrary objects in terms of Bayesian inference procedures, and presents a specific implementation of the model and inference procedures to carry out detection and tracking on a number of target-types in different settings.
@@ -129,7 +119,6 @@ In the past five years, there has been a push for methods that incorporate detec
 % % (related to previous?) models objects as distribution-components (of a mixture model) as opposed to point-targets or targets with noise that adheres to some distribution (is this truly a distinction and is it good?)
 
 
-
 % This idea presents a framework which allows for time-varying models of objects' appearances and motion behaviors to be incorporated, and is formulated in a Bayesian manner that allows distributions underlying the parameters of these models to be specified in a principled manner. It has been shown to work successfully in conjunction with simple (noisy) extraction methods. More robust, expensive, or in general accurate methods can be used for further accuracy. This method is able to handle the appearance and disappearance of objects from a scene, variable numbers of objects, cases where objects show time varying changes in behavior, and cases of occlusion.
 
 % Section two of this paper provides an overview of the model and describes how aspects can be modified for for modeling object appearance and motion behavior. Section three presents a specific implementation of the model and a number of inference procedures for carrying out object detection and tracking. Section four describes a number of experiments carried out with this implementation. Section five describes results of these experiments, comments on further directions of study, and provides concluding remarks.
@@ -139,33 +128,25 @@ In the past five years, there has been a push for methods that incorporate detec
 
 
 
-
-
-
-
-
-
-
 \section{Model Overview}
 \label{sec:modeloverview}
-%
-This section provides details on the data to be modeled, the Dirichlet process mixture (DPM) model, and the dependent Dirichlet process mixture (DDPM) model. We make explicit the way in which characteristics of video objects can be represented by elements of these models. We formulate the model in a sufficently abstract manner to allow for implementations tailored for specified objects in future studies.
+
+This section provides details on the extracted data, Dirichlet process mixture (DPM) models, dependent Dirichlet process mixture (DDPM) models, and the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM) model. We make explicit the way in which characteristics of video objects can be represented by elements of these models. We formulate the model in a sufficently abstract manner to allow for implementations using specific object representations and extraction procedures in future studies.
 
 
 
-
-\subsection{Data}
+\subsection{Data Extraction}
 \label{sec:data}
-%
+
 We defined the task of extraction to be the unsupervised determination of which spatiotemporal regions of a video constitute objects, and outlined a number of extraction methods in Section~\ref{sec:relatedwork}. Extraction allows us to generate a collection of data points. Each data point can be thought of as a hypothesis about, or noisy version of, the representation of an object; a collection of hypotheses for a given object is assumed to be distributed in some way around the true object representation. A video of multiple objects is therefore assumed to yield data that contains multiple groups of object hypotheses with similar characteristics (i.e. clusters of similar hypotheses).
 
-Determining the regions of each video frame that contain objects allows us to generate these object hypotheses; namely, we let each hypothesis be a description of the pixel data over an area centered at a point in the extracted region. We can, for example, let each pixel in the extracted region be a hypothesis, and let the features of the representation consist of the spatial position of the pixel. An extraction dataset of this form is comprised of the three-dimensional points $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$, where $x_{1}$ and $x_{2}$ are the two spatial dimensions of a pixel contained in an extracted region in a given frame, and $t$ is the discrete time index of the frame. These three features are always available once regions containing objects are discerned, and are useful features for modeling (as position information is key for reasonable tracking and time information is necessary for maintaining the temporal dependencies in the data).
+Determining the regions of each video frame that contain objects allows us to generate these object hypotheses; namely, we let each hypothesis be a description of the pixel data over an area centered at a point in the extracted region. We can, for example, let each pixel in the extracted region be a hypothesis, and let the features of the representation consist of the spatial position of the pixel. An extraction dataset of this form is comprised of the three-dimensional points $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$, where $x_{1}$ and $x_{2}$ are the two spatial dimensions of a pixel contained in an extracted region in a given frame, and $t$ is the discrete time index of the frame. These three features are always available once regions containing objects are discerned, and are useful features for modeling (as position and time information is key for reasonable tracking).
 
-Examples of additional features that could potentially be extracted from object-regions in video frames include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform calculations (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and can be represented by distributions that allow for tractable inference (discussed further in Section~\ref{sec:inference}).
+Examples of additional features that could be extracted from object-regions in video frames include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform calculations (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and can be represented by distributions that allow for tractable inference (discussed further in Section~\ref{sec:inference}).
 
-We will use the phrase ``baseline'' three-dimensional extraction data to refer to the features $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ of pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when they are plotted in three dimensions (where we let the frame number $t$, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). An example of data with such a distribution can been seen in Figure~\ref{fig:baselinedata}. The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
+We will use the phrase ``baseline'' three-dimensional extraction data to refer to the features $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ of pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when the data are plotted in three dimensions (where we let the frame number $t$, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). %An example of data with such a distribution can been seen in Figure~\ref{fig:baselinedata}...The data consists of the three-dimensional baseline features and was gained by extraction peformed on a 50 frame sequence showing five ants moving across the video scene.
 
-% frank says the following worm figures are a no go
+% frank says the following worm figures are a no go.
 % \begin{figure}[h]
 %   \centering
 %   \subfloat[]{\label{fig:baselinedata1}\includegraphics[width=0.33\textwidth]{../img/pets2001_data_1.png}} 
@@ -182,52 +163,51 @@ Inference performed on the time dependent Dirichlet process mixture model (Secti
 
 
 
-
-
-
 \subsection{Dirichlet Process Mixtures}
+\label{sec:dpm}
 
-Dirichlet process mixtures fall under the heading of Bayesian nonparametric (BNP) models. These models have been widely used over the past decade to perform nonparametric density estimation and cluster analysis. They are, in particular, useful for estimating the number of latent classes (clusters) in mixture models. In this work, estimating the number of clusters in the data generated via extraction is shown in the following sections to be equivalent to estimating the number of distinct objects in a video. Consequentially, a model that is able to perform robust nonparametric estimation of the clusters in an extraction dataset may be applied to perform unsupervised object detection and tracking.
+Dirichlet process mixtures fall under the heading of Bayesian nonparametric (BNP) models. These models have been widely used over the past decade to perform nonparametric density estimation and cluster analysis. They are, in particular, useful for estimating the number of latent classes (clusters) in mixture models. In this work, estimating the number of clusters in the data generated via extraction is equivalent to estimating the number of distinct objects in a video. Consequentially, a model that is able to perform robust nonparametric estimation of the clusters in data gained during extraction may be applied to perform unsupervised object detection and tracking.
 
-The following sections are intended to provide a solid introduction to DPMs without a major foray into the theoretical aspects of the model that require a more rigorus technical setup. We give background on finite mixture models, Bayesian finite mixture models, and Dirichlet processes, which allows us to subsequently describe DPMs in context. 
+The following sections are intended to provide an introduction to DPMs without a major foray into the theoretical aspects of the model that require a more rigorus technical setup. We provide background on finite mixture models, Bayesian finite mixture models, and Dirichlet processes, which allows us to subsequently describe DPMs in context. 
 
 
 \subsubsection{Finite Mixture Model}
+\label{sec:finite_mixture}
 
-A finite mixture model can be thought of as a probability distribution for an observation $x_{i}$ formulated as a linear combination of K mixture components (also called `clusters'), where the coefficients of the linear combination sum to one; each mixture component, in turn, is a probability distribution for $x_{i}$, given some parametric form. The finite mixture model can be written as
+A finite mixture model can be thought of as a probability distribution for an observation $x_{i}$ formulated as a linear combination of K mixture components (which we also refer to as `clusters'), where each mixture component is a probability distribution for $x_{i}$ with some parametric form, and the coefficients of the linear combination sum to one. The finite mixture model can be written as
 \begin{equation}
-P(x) = \sum_{k=1}^{K} P(c_{i} = k)P(x|\theta_{k})
+P(x_{i}) = \sum_{k=1}^{K} P(c_{i} = k)P(x_{i}|\theta_{k})
 \end{equation}
-where $c_{i} \in \{ 1, \ldots, K \}$ denotes the assignment of $x_{i}$ to a given mixture (which allows the coefficients of the linear combination to be written as $P(c_{i} = k)$), and $\theta_{k}$ denotes the parametric form of the $k^{\text{th}}$ mixture component. We also define $p_{k} = P(c_{i} = k)$ for $k \in \{ 1, \ldots, K \} $. We can therefore write this model generatively as
+$\forall i \in \{ 1, \ldots, N \}$, where $c_{i} \in \{ 1, \ldots, K \}$ denotes the assignment of $x_{i}$ to a given mixture and $\theta_{k}$ denotes the parameters of the $k^{\text{th}}$ mixture component. Note that by choosing $P(c_{i} = k)$ as coefficients of the linear combination, it is ensured that these coefficients sum to one. We also define $p_{k} := P(c_{i} = k)$ for $k \in \{ 1, \ldots, K \} $. We can therefore write this model generatively as
 \begin{align}
 \begin{split}
 	c_{i}|p_{1}, \ldots, p_{K}  &\sim  \text{Discrete}(p_{1}, \ldots, p_{K}) \\
 	x_{i}|c_{i}, \theta_{c_{i}}  &\sim  F(\theta_{c_{i}})
 \end{split}
 \end{align}
-where the $x_{i}$ (for $i \in \{ 1, \ldots, N \}$) are observations, the $c_{i}$ are the mixture component assignments associated with each observation, and the $\theta_{c_{i}}$ are parameters defining the $c_{i}^{\text{th}}$ mixture component (i.e. the distribution to be mixed, $F(\theta_{c_{i}})$).
+$\forall i \in \{ 1, \ldots, N \}$, where the $x_{i}$ are observations, the $c_{i}$ are the mixture component assignments associated with each observation, the $\theta_{c_{i}}$ are parameters defining the $c_{i}^{\text{th}}$ mixture component (i.e. the distribution to be mixed, $F(\theta_{c_{i}})$), and the ``Discrete'' distribution refers to a multinomial distribution whose parameters are a 1-of-K vector (i.e. a vector of counts that sums to one).
 
 
 
 \subsubsection{Bayesian (Finite) Mixture Model}
+\label{sec:bayesian_mixture}
 
-
-The finite mixture model of the previous section can be extended to a Bayesian mixture model by viewing the distribution parameters that were previously point values, $\theta_{c_{i}}$ (the mixture component parameters) and $p_{1}, \ldots, p_{K}$ (the mixture component assignment weights), as random variables and providing each with a prior distribution. In this case, the prior distribution $\mathbb{G}_{0}$ is placed on the mixture component parameters, and the prior distribution $\text{Dir}(\alpha/K, \ldots, \alpha/K)$ is placed on the K mixture component assignment weights. The resulting Bayesian mixture model can be formulated in a generative representation as
+The finite mixture model of the previous section can be extended to a Bayesian mixture model by viewing parameters that were previously point values, $\theta_{c_{i}}$ (the mixture component parameters) and $p_{1}, \ldots, p_{K}$ (the mixture component assignment weights), as random variables and providing each with a prior distribution. In this case, the prior distribution $\mathbb{G}_{0}$ is placed on the mixture component parameters, and the prior distribution $\text{Dir}(\alpha/K, \ldots, \alpha/K)$ is placed on the mixture component assignment weights. The resulting Bayesian mixture model can be formulated generatively as
 \begin{align}
 \begin{split}
 \label{bayesian_mixture_model}
 	p_{1}, \ldots, p_{K}  &\sim  \text{Dir}(\alpha/K, \ldots, \alpha/K)\\
+		\theta_{k}  &\sim  \mathbb{G}_{0}, \hspace{2mm} \forall k \in \{1, \ldots, K\} \\
 	c_{i}|p_{1}, \ldots, p_{K}  &\sim  \text{Discrete}(p_{1}, \ldots, p_{K}) \\
-	\theta_{c_{i}}  &\sim  \mathbb{G}_{0} \\
 	x_{i}|c_{i}, \theta_{c_{i}}  &\sim  F(\theta_{c_{i}})
 \end{split}
 \end{align}
-where the $x_{i}$ (for $i \in \{ 1, \ldots, N \}$) are observations, the $c_{i}$ are the mixture component assignments associated with each observation, the $\theta_{c_{i}}$ are parameters defining the $c_{i}^{\text{th}}$ mixture component (i.e. the distribution to be mixed, $F(\theta_{c_{i}})$), the $\theta_{c_{i}}$ are drawn from the prior distribution $\mathbb{G}_{0}$, and $p_{1}, \ldots, p_{K}$ are drawn from a Dirichlet prior parameterized by $\alpha/K, \ldots, \alpha/K$.
-
+$\forall i \in \{ 1, \ldots, N \}$, where the $x_{i}$ are observations, the $c_{i}$ are the mixture component assignments associated with each observation, the $\theta_{k}$ are parameters defining the $k^{\text{th}}$ mixture component (i.e. the distribution to be mixed, $F(\theta_{k})$), the $\theta_{k}$ are drawn from a prior distribution $\mathbb{G}_{0}$, and $p_{1}, \ldots, p_{K}$ are drawn from a Dirichlet prior parameterized by $\alpha/K, \ldots, \alpha/K$.
 
 
 
 \subsubsection{Dirichlet Process}
+\label{sec:dirichlet_process}
 
 % Define Dirichlet distribution first? Each draw from a K-dimensional Dirichlet lies on the K-simplex (i.e. is a vector of K values which sum to 1) and can therefore be thought of as a K-dimensional discrete distribution.
 
@@ -247,9 +227,10 @@ Hence, the expectation of $G(A)$ is $\mathbb{G}_{0}$, the variance of $G(A) \rig
 
 
 \subsubsection{Dirichlet Process (Infinite) Mixture Model}
+\label{sec:dirichlet_process_mixture}
 
 A Dirichlet process mixture model, also refered to as an infinite mixture model, is an extension of the Bayesian mixture model described previously. 
-When using a DP as a prior in a Bayesian mixture model, $\Theta$ can be viewed as the set of parameters of the component mixture distributions. 	A DPM is formulated by allowing the prior distribution over component weights in a standard mixture model to be distributed according to a DP \willie{need to make sure am saying this right}; this allows for modeling data where the true number of latent mixture components is unknown and arbitrarily large by assuming an infinite number of components, of which only a finite amount are expressed by the data. In particular, the DPM can be defined generatively as
+When using a DP as a prior in a Bayesian mixture model, $\Theta$ represents the set of parameters of the component mixture distributions. A DPM may be viewed as allowing the prior distribution over the mixture component parameters in a standard mixture model to be distributed according to a DP; this allows for modeling data where the true number of latent mixture components is unknown and arbitrarily large by letting the number of components remain unbounded (note that only a finite number of these components are assigned to the data). In particular, the DPM can be defined generatively as
 \begin{align}
 \begin{split}
 	\mathbb{G} | \alpha, \mathbb{G}_{0}  &\sim  \text{DP}(\alpha, \mathbb{G}_{0}) \\
@@ -257,9 +238,10 @@ When using a DP as a prior in a Bayesian mixture model, $\Theta$ can be viewed a
 	x_{i}|\phi_{i} &\sim F(\phi_{i})
 \end{split}
 \end{align}
-where the $x_{i}$ (for $i \in \{ 1, \ldots, N \}$) are observations, the $\phi_{i}$ are parameters defining the mixture component from which the $i_{th}$ observation is drawn (i.e. the distribution to be mixed, $F(\phi_{i})$), and the $\phi_{i}$ are drawn from $\mathbb{G}$, which is in turn drawn from a DP with base distribution $\mathbb{G}_{0}$ and parameter $\alpha$. See \cite{gasthaus_2008} and \cite{gasthaus_thesis} for more details on this formulation. Note the difference between the indexing of the clusters in this model and the indexing in the previous two models. This formulation can be shown to be equivalent to the Bayesian mixture model defined in \eqref{bayesian_mixture_model}, when K is taken to be unbounded. This is the origin for references to this model as the infinite mixture model.
+$\forall i \in \{ 1, \ldots, N \}$, where the $x_{i}$ are observations, the $\phi_{i}$ are parameters defining the mixture component from which the $i_{th}$ observation is drawn (i.e. the distribution to be mixed, $F(\phi_{i})$), and the $\phi_{i}$ are drawn from a prior distribution $\mathbb{G}$, which is in turn drawn from a DP with base distribution $\mathbb{G}_{0}$ and parameter $\alpha$. See \cite{gasthaus_2008} and \cite{gasthaus_thesis} for more details on this formulation. Note the difference between the indexing of the clusters in this model and the indexing in the previous two models. This formulation can be shown to be equivalent to the Bayesian mixture model defined in \eqref{bayesian_mixture_model}, when K is taken to be unbounded; as a result, this model is often called an infinite mixture model.
 
-An alternative formultion of the DPM is known as the Chinese resturant process (CRP) sampling representation. If we let $K$ be the number of distinct mixture components in the above model, we can write the distinct mixture components as $\theta_{1}, \ldots, \theta_{K}$. Let $c_{1}, \ldots, c_{N}$ (where $c_{i} \in \{1, \ldots, K \}$) be class assignment variables that indicate the cluster to which observation $x_{i}$ is assigned. This allows the DPM to be represented by the CRP, a discrete-time stochastic process that defines a partition of the set $\{ x_{1}, \ldots, x_{N} \}$ (via the elements' assignments $c_{1}, \ldots, c_{N}$). The CRP allows samples to be drawn from the conditional distribution of the indictor variables $c_{i}$, and can be expressed as
+% An alternative formultion of the DPM is known as the Chinese resturant process (CRP) sampling representation. 
+If we let $K$ be the number of distinct mixture components assigned to observations using the above model, we can write the mixture components as $\theta_{1}, \ldots, \theta_{K}$. Let $c_{1}, \ldots, c_{N}$ (where $c_{i} \in \{1, \ldots, K \}$) be class assignment variables that indicate the cluster to which observation $x_{i}$ is assigned. We can now formulate the Chinese restaurant process, a discrete-time stochastic process that defines a partition of the set $\{ x_{1}, \ldots, x_{N} \}$ (via the elements' assignments $c_{1}, \ldots, c_{N}$). The Chinese restaurant process allows samples to be drawn from the conditional distribution over the assignment variables $c_{i}$, and can be expressed as
 \begin{align}
 \begin{split}
 \label{crp_rep}
@@ -267,70 +249,104 @@ An alternative formultion of the DPM is known as the Chinese resturant process (
 	P(c_{i} \neq c_{j} \text{  for all  } j<i) &= \frac{\alpha}{i-1+\alpha}
 \end{split}
 \end{align}
-where $m_{k}$ is the cardinality of the set $\{ c_{j} | (c_{j}=c_{i}=k)  \wedge  (j < i) \}$ and $\alpha$ is the parameter of the DP prior on $\mathbb{G}$.
-
-
+where $m_{k}$ is the cardinality of the set $\{ c_{j} | (c_{j}=c_{i}=k)  \wedge  (j < i) \}$ and $\alpha$ is the parameter of the DP prior on $\mathbb{G}$. A modified Chinese restaurant process will be used to draw samples from the conditional distribution over the assignment variables when performing inference on the GPUDDPM (Section~\ref{sec:gpuddpm}).
 
 
 
 \subsection{Dependent Dirichlet Process Mixtures}
+\label{sec:ddpm}
 
-The goal of dependent Dirichlet process mixtures (DDPMs) is to allow modeling of data that is not independent and identically distributed (i.i.d) but instead has some underlying dependencies. For example, data generated during extraction procedures from videos have some associated temporal structure, since tracked objects display time dependent characteristics (in the features that denote position, as well as those which denote other appearance characteristics).
+The goal of dependent Dirichlet process mixtures is to allow modeling of data that is not independent and identically distributed (i.i.d) but instead has some underlying dependencies. For example, data generated during extraction procedures from videos have some associated temporal dependencies, since tracked objects display time dependent characteristics (i.e. there are similarities among features, such as the spatial positions or appearances of objects, for data at nearby time steps).
 
-To account for the dependent behavior of data, research has been conducted on developing models involving a sequence of DPMs, where components of the mixtures are dependent upon (or may be considered `tied to') corresponding components at neighboring positions in the sequence. For example, if the data shows temporal dependence, the goal might be to create a sequence of DPMs, one for each time-step, where the components of the mixture at each step are dependent upon corresponding components in the both the following and previous time steps \willie{cite some of these}.
+To account for the dependent behavior of data, there has been research on developing models involving a sequence of DPMs, where components of the mixtures are dependent upon (or are sometimes said to be ``tied to'') corresponding components at neighboring positions in the sequence. For example, if the data shows temporal dependence, the goal might be to create a sequence of DPMs, one for each time-step, where the components of the mixture at each step are dependent upon corresponding components in the both the following and previous time steps. \willie{Discuss and cite DDPMs}.
 
 More rigorously, we take the definition of a DDPM to be a stochastic process defined on the space of probability distributions over a domain, which are indexed by time, space, or a selection of other covariates in such a way that the marginal distribution at any point in the domain follows a Dirichlet process (adapted from definitions found in \cite{gasthaus_thesis} and \cite{griffin2006order}). Hence, a time-dependent DDPM is a model which remains a Dirichlet process, marginally, at each time step, yet allows cluster parameters at a given time step to vary from (and remain dependent upon) the parameters in neighboring time steps.
 
 
 
 \subsubsection{Generalized Polya Urn Dependent Dirichlet Process Mixture}
-\label{sec:gpudpm}
+\label{sec:gpuddpm}
 
 Data gained by performing extraction on videos containing objects is significantly time-dependent. Futhermore, the clusters of data, each representing a video object, might change in number as time progresses (which is to say, clusters may get `born' and may `die' at some intermediate time step), since objects can enter and exit a scene. To handle these challenges, the specific DDPM chosen to model extraction data in this work is known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), introduced by \cite{caron_2007} in 2006.
 
 The GPUDDPM, when applied to data over T discrete time steps, can be viewed as a sequence of DPMs (one for each $t \in \{1, \ldots, T \}$), which are linked together by dependencies between cluster parameters in neighboring time steps. More specifically, the parameters at a given time step are distributed as a function of the parameters in the previous time step, and the distribution and number of distinct cluster assignments at a given time step are distributed according to all previous cluster assignments and a deletion procedure, described below.
 
-A transition kernel $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ specifies how mixture component parameters in time step $t$ are dependent upon associated mixture component parameters in time step $t-1$. One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of $P(\phi_{k}^{t} | \phi_{k}^{t-1})$ (note that the transition kernel is a markov chain). 
+A transition kernel $P(\theta_{k,t} | \theta_{k,t-1})$ specifies how mixture component parameters in time step $t$ are dependent upon associated mixture component parameters in time step $t-1$. One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of the transition kernel $P(\theta_{k,t} | \theta_{k,t-1})$ (which, one should note, is also a markov chain).
 
 Recall that the distribution over the cluster assignments $c_{i}$ (one for each observation $i$) is a function of the cluster sizes (see \eqref{crp_rep}). Hence, to account for varying numbers of clusters---and in particular, to allow clusters to diminish in size (i.e. reduce the number of assigned observations) and even die---there is a deletion procedure (described in \cite{caron_2007}) by which observations are considered ``removed'' from their assigned clusters at a given time step and value of $m_{k}$ (defined in \eqref{crp_rep} to be the size of cluster $k$) is reduced.
 
-The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each (remaining) assignment is removed from its cluster with probability $\rho$. We can consider the size $m_{k,t}$ of cluster $k$ at time $t$ to be dependent upon the cluster size at time $t-1$ via a deletion step. It can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the cluster size $m_{k,t}$ by $r$. This can be written as 
+The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each (remaining) assignment is removed from its cluster with probability $\rho$. The size $m_{k,t}$ of cluster $k$ at time $t$ can be computed by removing elements from cluster $k$ at the previous time and thus diminishing the cluster's size at time $t-1$. It can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the cluster size $m_{k,t}$ by $r$. % This can be written as
+% \begin{equation}
+% \label{del_step}
+% m_{k,t} | m_{k,t-1}   \sim   m_{k,t-1}-\text{Binomial}(m_{k,t-1}, \rho)
+% \end{equation}
+For each time step, after all observations are given an assignment, this deletion procedure is carried out. Hence, the size $m_{k,t}$ of a given cluster $k$ at time $t$, is dependent upon the cluster size at the previous time step and on the assignments $c_{i}$ for all observations $i \in \{ 1, \ldots, N_{t} \}$ at time $t$. We refer to the conditional distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL, which we define to be
 \begin{equation}
+\begin{split}
 \label{del_step}
-m_{k,t} | m_{k,t-1}   \sim   m_{k,t-1}-\text{Binomial}(m_{k,t-1}, \rho)
+\text{DEL} & (\cdot | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) :=
+\left( m_{k,t-1} - \text{Binomial}( \cdot | {m_{k,t-1}, \hspace{1mm} \rho}) \right) + \sum_{i=1}^{N_{t}} \mathbb{I}(c_{i,t} = k)
+\end{split}
 \end{equation}
-with deletion parameter $\rho$. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented \cite{caron_2007}. For a given time $t$ and cluster $k$, the size $m_{k,t}$ is dependent upon the cluster size at the previous time step (via \eqref{del_step}) and on the assignments $c_{i}$ for observations at time $t$. We refer to this distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as DEL. Using the cluster size and observation deletion terms introduced above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$,  % and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
+$\forall k \in \{1, \ldots, K_{t} \}$, where $\rho$ is a deletion parameter, and $\mathbb{I}(c_{i,t} = k)$ is an indicator function whose value is 1 if $c_{i,t} = k$ and 0 otherwise. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented and is described in \cite{caron_2007}. The Chinese restaurant process is used to sample assignment variables during inference procedures (described in Section~\ref{sec:inference}). We define a distribution used in these procedures, CRP, to be
+\begin{equation}
+\begin{split}
+\text{CRP} & (\cdot | m_{1:K_{t},t}, \hspace{1mm} \alpha) :=
+\text{Discrete}(\cdot | P(c_{i,t}=1 | m_{1:K_{t},t}), \ldots, P(c_{i,t}=K_{t+1}  | m_{1:K_{t},t}))
+\end{split}
+\end{equation}
+where
+\begin{equation}
+P(c_{i,t}=k  | m_{1:K_{t},t}) = 
+\begin{cases}
+\frac{m_{k,t}}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{2mm} \text{if} \hspace{2mm} k \in \{ 1, \ldots, K_{t} \} \\
+\frac{\alpha}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{2mm} \text{if} \hspace{2mm} k = K_{t} + 1
+\end{cases}
+\end{equation}
+$\forall i \in \{1, \ldots, N \}$, where there exists $K_{t}$ clusters at time $t$, and we give a newly created cluster the index $K_{t+1}$. Note the similarity between the above definition and the Chinese resturant process of the DPM given by \eqref{crp_rep}. The deletion and Chinese resturant procedures together comprise what \cite{caron_2007} refers to as the ``Generalized Polya Urn''. Using the DEL and CRP distributions given above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$, and each cluster $k \in \{ 1, \ldots, K_{t} \}$ at time $t$,  % and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
 \begin{align}
 \begin{split}
-\bold{m}_{t} | \bold{m}_{t-1}, \rho  &\sim \text{DEL}(\bold{m}_{t-1}, \rho) \\
-c_{i} | \bold{m}_{t}, \alpha  &\sim  \text{CRP}(\bold{m}_{t}, \alpha) \\
-\theta_{c_{i}, t} | \theta_{c_{i}, t-1}   &\sim
+m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho  &\sim \text{DEL}(m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) \\
+\theta_{k, t} | \theta_{k, t-1}   &\sim
 \begin{cases}
-	P(\theta_{c_{i}, t} | \theta_{c_{i}, t-1}) \\
-	\mathbb{G}_{0}
+	P(\theta_{k, t} | \theta_{k, t-1}) \hspace{2mm} \text{if} \hspace{2mm} k \in \{ 1, \ldots, K_{t} \} \\
+	\mathbb{G}_{0}   \hspace{2mm} \text{if} \hspace{2mm} k = K_{t+1}
 \end{cases} \\
-\bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t})
+c_{i,t} | m_{1:K_{t},t}, \hspace{1mm} \alpha  &\sim  \text{CRP} (m_{1:K_{t},t}, \hspace{1mm} \alpha) \\
+\bold{x}_{i} | c_{i}, \theta_{1:K_{t}, t} &\sim F(\theta_{c_{i}, t})
 \end{split}
 \end{align}
-where $\text{CRP}(\cdot, \alpha)$ is given in \eqref{crp_rep}. The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}. The above formulation holds if there is exactly one observation at each time step. Often, the data extracted from objects in videos consists of multiple observations at each time step, each with an assignment variable ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). If we allow for multiple observations $i \in \{ 1, \ldots, N_{t} \}$ at each time $t$, this formulation becomes,
-\begin{align}
-\begin{split}
-\bold{m}_{t}^{1} | \bold{m}_{t-1}^{N_{t-1}}, \rho  &\sim \text{DEL}(\bold{m}_{t-1}^{N_{t-1}}, \rho) \\
-c_{i} | \bold{m}_{t}^{i-1}, \alpha  &\sim  \text{CRP}(\bold{m}_{t}^{i-1}, \alpha) \\
-\theta_{c_{i}, t} | \theta_{c_{i}, t-1}   &\sim
-\begin{cases}
-	P(\theta_{c_{i}, t} | \theta_{c_{i}, t-1}) \\
-	\mathbb{G}_{0}
-\end{cases} \\
-\bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t})
-\end{split}
-\end{align}
-where $\bold{m}_{t}^{i}$ represents the $i^{\text{th}}$ observation at time $t$. 
-
+The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
 \begin{figure}[h]
         \center{\includegraphics[width=90mm]{../img/gpuddp_gm_1.pdf}}
-        \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Poly Urn Dependent Dirichlet Process Mixture}
+        \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Polya Urn Dependent Dirichlet Process Mixture. Note that all observations at time $t$, $\bold{x}_{1:N,t}$, and their associated assignments $c_{1:N,t}$ are denoted respectively as $x_{t}$ and $c_{t}$ (this also holds for time step $t-1$).}
 \end{figure}
+% \begin{align}
+% \begin{split}
+% \bold{m}_{t} | \bold{m}_{t-1}, \rho  &\sim \text{DEL}(\bold{m}_{t-1}, \rho) \\
+% c_{i} | \bold{m}_{t}, \alpha  &\sim  \text{CRP}(\bold{m}_{t}, \alpha) \\
+% \theta_{c_{i}, t} | \theta_{c_{i}, t-1}   &\sim
+% \begin{cases}
+% 	P(\theta_{c_{i}, t} | \theta_{c_{i}, t-1}) \\
+% 	\mathbb{G}_{0}
+% \end{cases} \\
+% \bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t})
+% \end{split}
+% \end{align}
+% where $\text{CRP}(\cdot, \alpha)$ is given in \eqref{crp_rep}. The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}. The above formulation holds if there is exactly one observation at each time step. Often, the data extracted from objects in videos consists of multiple observations at each time step, each with an assignment variable ($c_{i}$ for $i \in \{ 1, \ldots, N_{t} \}$, where $N_{t}$ is the number of observations at time step $t$). If we allow for multiple observations $i \in \{ 1, \ldots, N_{t} \}$ at each time $t$, this formulation becomes,
+% \begin{align}
+% \begin{split}
+% \bold{m}_{t}^{1} | \bold{m}_{t-1}^{N_{t-1}}, \rho  &\sim \text{DEL}(\bold{m}_{t-1}^{N_{t-1}}, \rho) \\
+% c_{i} | \bold{m}_{t}^{i-1}, \alpha  &\sim  \text{CRP}(\bold{m}_{t}^{i-1}, \alpha) \\
+% \theta_{c_{i}, t} | \theta_{c_{i}, t-1}   &\sim
+% \begin{cases}
+% 	P(\theta_{c_{i}, t} | \theta_{c_{i}, t-1}) \\
+% 	\mathbb{G}_{0}
+% \end{cases} \\
+% \bold{x}_{i} | c_{i}, \theta_{c_{i}, t} &\sim F(\theta_{c_{i}, t})
+% \end{split}
+% \end{align}
+% where $\bold{m}_{t}^{i}$ represents the $i^{\text{th}}$ observation at time $t$.
 
 
 
@@ -366,7 +382,7 @@ In the following sections, a particular extraction method for generating data fr
 
 
 
-\subsection{Extraction}
+\subsection{Data Extraction via Frame Differencing}
 \label{sec:modelspec_extraction}
 
 We desire an extraction procedure that is as unsophisticated as possible, both to gauge the robustness of this method on potentially noisy extraction data and to ensure that the procedure is applicable to a wide range of videos. For these reasons we choose the method of frame-differencing for all extraction performed in this paper, which involves recording the positions of pixels (or pixel groups) that have exhibited differences in intensity or value in succesive frames beyond a given threshold. In particular, if we let $I_{t}$ be the image difference obtained by subtracting the value of the $(i,j)^{th}$ pixel in video frame $t$ from the value of the $(i,j)^{th}$ pixel in video frame $t+1$, we can define extraction on frame $t$ to be the process that returns the dataset
@@ -460,7 +476,7 @@ where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution,
 
 We wish to formulate a transition kernel $P(\theta_{t} | \theta_{t-1})$ that provides a reasonable representation of how we expect tracked objects to behave. In the interest of formulating a model with the intention of using it to track arbitrary objects, we do not wish to make many assumptions about the long-term behavior of objects (though transition kernels that incorporate, for example, dynamics could potentially be implemented if one is aware beforehand of an object's behavior).
 
-As described in Section~\ref{sec:gpudpm}, $\mathbb{G}_{0}$ must be the invariant distribution of $P(\theta_{t} | \theta_{t-1})$ in order for the the cluster parameters to remain marginally distributed according to the base distribution. In other words, the transition kernel must satisfy
+As described in Section~\ref{sec:gpuddpm}, $\mathbb{G}_{0}$ must be the invariant distribution of $P(\theta_{t} | \theta_{t-1})$ in order for the the cluster parameters to remain marginally distributed according to the base distribution. In other words, the transition kernel must satisfy
 \begin{equation}
 \int \mathbb{G}_{0}(\theta_{t-1})P(\theta_{t} | \theta_{t-1}) d\theta_{t-1} = \mathbb{G}_{0}(\theta_{t})
 \end{equation}
@@ -526,7 +542,7 @@ Algorithms that infer latent model parameters in a Bayesian manner given the dat
 
 This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which provides a method to carry out unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution---i.e. it implements Gibbs sampling---in order to gain approximate samples from the posterior distribution of the cluster parameters given the data. Additionally, this sampler makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
-The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpudpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. In particular, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
+The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpuddpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. In particular, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
 \begin{equation}
 \label{compute_clust_size}
 m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
@@ -549,10 +565,11 @@ The MCMC sampler described in this section operates in this alternate representa
 \end{cases}
 \end{split}
 \end{align}
-where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in \ref{fig:gpuddpm_gm_2}.
+where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
 \begin{figure}[h]
         \center{\includegraphics[width=100mm]{../img/gpuddp_gm_3.pdf}}
-        \caption{\label{fig:gpuddpm_gm_2} Graphical model of the deletion-variable representation of the GPUDDPM}
+        \caption{Graphical model of the deletion variable and auxiliary variable transition kernel representation of the GPUDDPM}
+        \label{fig:gpuddpm_gm_2}
 \end{figure}
 
 
@@ -934,8 +951,8 @@ To calculate performance metrics (both SFDA and ATA), one must specify a confide
 
 \begin{figure}[h]
   \centering             
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2000_pm}}
-  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2001_pm}}
+  \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2000_pm.pdf}} \hspace{1mm}
+  \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2001_pm.pdf}}
   \caption{The SFDA (blue solid line) and ATA (red dashed line are) vs  confidence values from which an object's oval region is computed for (a) PETS2000 and (b) PETS2001 video datasets.}
   \label{fig:pm_conf}
 \end{figure}
@@ -987,7 +1004,7 @@ The SMC inference algorithm yielded a sample from the posterior distribution, fr
   \centering
   % \subfloat[]{\label{fig:pets2009_results} \includegraphics[width=0.7\textwidth]{../img/pets2009_1-50_front.pdf}}
   \includegraphics[width=0.7\textwidth]{../img/pets2009_1-50_front.pdf}
-  \caption{Results on frames 1-50 of the PETS2009 dataset, showing a sample from the posterior distribution of the state, where the vertical axis denotes time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+  \caption{Results for the PETS2009 dataset, showing a sample from the posterior distribution of the state for frames 1-50, where the vertical axis denotes time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
   \label{fig:pets2009_results}
   % \label{fig:benchmark_results_2}
 \end{figure}
