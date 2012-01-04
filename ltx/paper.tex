@@ -1,4 +1,4 @@
-\documentclass[smallcondensed, final]{svjour3}
+\documentclass[smallcondensed, draft]{svjour3}
 % \documentclass[smallcondensed, final]{svjour3}[1/1/2012]
 
 
@@ -290,6 +290,7 @@ For each time step, after all observations are given an assignment, this deletio
 \end{equation}
 $\forall k \in \{1, \ldots, K_{t} \}$, where $\rho$ is a deletion parameter, and $\mathbb{I}(c_{i,t} = k)$ is an indicator function whose value is 1 if $c_{i,t} = k$ and 0 otherwise. This process adheres to what \cite{caron_2007} calls a `uniform deletion strategy' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented and is described in \cite{caron_2007}. The Chinese restaurant process is used to sample assignment variables during inference procedures (described in Section~\ref{sec:inference}). We define a distribution used in these procedures, CRP, to be
 \begin{equation}
+\label{CRP}
 \begin{split}
 \text{CRP} & (\cdot | m_{1:K_{t},t}, \hspace{1mm} \alpha) :=
 \text{Discrete}(\cdot | P(c_{i,t}=1 | m_{1:K_{t},t}), \ldots, P(c_{i,t}=K_{t+1}  | m_{1:K_{t},t}))
@@ -313,13 +314,13 @@ m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho  &\sim \text
 	\mathbb{G}_{0}   \hspace{2mm} \text{if} \hspace{2mm} k = K_{t+1}
 \end{cases} \\
 c_{i,t} | m_{1:K_{t},t}, \hspace{1mm} \alpha  &\sim  \text{CRP} (m_{1:K_{t},t}, \hspace{1mm} \alpha) \\
-\bold{x}_{i} | c_{i}, \theta_{1:K_{t}, t} &\sim F(\theta_{c_{i}, t})
+\bold{x}_{i,t} | c_{i,t}, \theta_{1:K_{t}, t} &\sim F(\theta_{c_{i,t}, t})
 \end{split}
 \end{align}
 The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
 \begin{figure}[h]
         \center{\includegraphics[width=90mm]{../img/gpuddp_gm_1.pdf}}
-        \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Polya Urn Dependent Dirichlet Process Mixture. Note that all observations at time $t$, $\bold{x}_{1:N,t}$, and their associated assignments $c_{1:N,t}$ are denoted respectively as $x_{t}$ and $c_{t}$ (this also holds for time step $t-1$).}
+        \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Polya Urn Dependent Dirichlet Process Mixture. Note that all observations at time $t$, $\bold{x}_{1:N,t}$, and their associated assignments $c_{1:N,t}$ are denoted respectively as $\bold{x}_{t}$ and $c_{t}$ (this also holds for time step $t-1$).}
 \end{figure}
 % \begin{align}
 % \begin{split}
@@ -454,6 +455,7 @@ In the following experiments, the hue component of a pixel's h-s-v value is reco
 
 At a given time $t$, we model each $\bold{x} \in \bold{X}$ as a draw from the product of a multivariate normal and multinomial distribution
 \begin{equation}
+\label{likelihood}
 P(\bold{x}|\theta) = \mathcal{N}(\bold{x}^{s} | \boldsymbol{\mu}, \Sigma)  \mathcal{M}n(\bold{x}^{c} | \bold{p})
 \end{equation}
 where $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ denote the parameters of a cluster at time $t$, with mean $\boldsymbol{\mu} \in \mathbb{R}^{2}$, covariance matrix $\Sigma \in \mathbb{R}^{2} \times \mathbb{R}^{2}$, and discrete probability vector $\bold{p} = (p_{1}, \ldots, p_{V})$ such that $\sum_{i=1}^{V}p_{i} = 1$. Also, $\mathcal{N}$ denotes the multivariate normal distribution and $\mathcal{M}n$ denotes the multinomial distribution, 
@@ -464,8 +466,9 @@ The distribution families assumed to generate each $\bold{x}$ must be justified.
 
 \subsubsection{Base Distribution $\mathbb{G}_{0}$ and Appearance Prior}
 
-$\mathbb{G}_{0}$ denotes the base distribution of the time-dependent Dirichlet process mixture; it also serves as a prior distribution for the parameters $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ present in the likelihood. We make use of conjugate priors in the base distribution to allow for more efficient computation. Specifically, in the experiments carried out in this paper, a normal-inverse-Wishart prior is placed on the multivariate normal parameters $\{ \boldsymbol{\mu}, \Sigma \}$ , and a Dirichlet prior is placed on the multinomial parameter $ \{  \bold{p}  \} $ (where the normal-inverse-Wishart is a conjugate prior for the multivariate normal component of the likelihood and the Dirichlet is a conjugate prior for the multinomial component). The prior can thus be written
-\begin{equation} \label{basedistro}
+$\mathbb{G}_{0}$ denotes the base distribution of the time-dependent Dirichlet process mixture; it also serves as a prior distribution for the parameters $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ present in the likelihood. We make use of conjugate priors in the base distribution to allow for more efficient computation. Specifically, in the experiments carried out in this paper, a normal-inverse-Wishart prior is placed on the multivariate normal parameters $\{ \boldsymbol{\mu}, \Sigma \}$ , and a Dirichlet prior is placed on the multinomial parameter $ \{  \bold{p}  \} $ (where the normal-inverse-Wishart is a conjugate prior for the multivariate normal component of the likelihood and the Dirichlet is a conjugate prior for the multinomial component). The prior can therefore be written
+\begin{equation}
+\label{basedistro}
 \mathbb{G}_{0}(\theta) = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
 \end{equation}
 where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution, $\mathcal{D}ir$ denotes the Dirichlet distribution, and the prior has the hyperparameters $\boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0}$ and $\bold{q}_{0}$.  \willie{reference text with good background on NiW and Dir distributions}
@@ -480,7 +483,7 @@ As described in Section~\ref{sec:gpuddpm}, $\mathbb{G}_{0}$ must be the invarian
 \begin{equation}
 \int \mathbb{G}_{0}(\theta_{t-1})P(\theta_{t} | \theta_{t-1}) d\theta_{t-1} = \mathbb{G}_{0}(\theta_{t})
 \end{equation}
-for a given cluster $\theta$. One way to achieve this is through the use of auxiliary variables. Auxiliary variables are a set of $M$ variables $\bold{z}_{t} = (z_{t,1}, \ldots, z_{t,M})$ associated with a each cluster $\theta$ at time $t$ that satisfy
+for a given cluster with parameters $\theta$. One way to achieve this is through the use of auxiliary variables. Auxiliary variables are a set of $M$ variables $\bold{z}_{t} = (z_{t,1}, \ldots, z_{t,M})$ associated with a each cluster at time $t$ that satisfy
 \begin{eqnarray}
 % P(\theta_{k,t} | \theta_{k,t-1}) = \int P(\theta_{k,t} | \bold{z}_{k,t}) P(\bold{z}_{k,t} | \theta_{k,t-1}) d \bold{z}_{k,t}
 P(\theta_{t} | \theta_{t-1}) = \int P(\theta_{t} | \bold{z}_{t}) P(\bold{z}_{t} | \theta_{t-1}) d \bold{z}_{t}  %\\
@@ -490,17 +493,31 @@ P(\theta_{t} | \theta_{t-1}) = \int P(\theta_{t} | \bold{z}_{t}) P(\bold{z}_{t} 
 In this way, the parameters of a cluster at a given time do not depend directly on their value at the previous time; they are instead dependent upon an intermediate sequence of auxiliary variables chosen to satisfy the above criteria, which allows the cluster parameters at each time step to be marginally distributed according to the base distribution $\mathbb{G}_{0}$.
 
 For each cluster, we introduce $M$ auxiliary variables $z_{t, 1}, \ldots, z_{t, M}$ at time $t$ that are each drawn from the product of a multivariate normal and multinomial when conditioned on the associated cluster parameters $\theta_{t} = \{ \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} \}$:
-\begin{equation} \label{transker1}
+\begin{equation}
+\label{transker1}
 z_{t, m} | \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t}  \sim  \mathcal{N}(\boldsymbol{\mu}_{t}, \Sigma_{t}) \mathcal{M}n(\bold{p}_{t})   \hspace{15pt}   
 \forall m \in \{ 1, \ldots, M \}
 \end{equation}
 To satisfy the above criteria for auxiliary variables, at each time $t$ we specify the dependencies of a given cluster on its associated set of auxiliary variables by
-\begin{equation} \label{transker2}
+\begin{equation}
+\label{transker2}
 \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} | \bold{z}_t  \sim  \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{M}, \kappa_{M}, \nu_{M}, \Lambda_{M})  \mathcal{D}ir(\bold{q}_{M})
 \end{equation}
 where $\boldsymbol{\mu}_{M}, \kappa_{M}, \nu_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are parameters given by
-\willie{these are given in next section, need to consider if I actually want to repeat them here}
-
+\begin{eqnarray}
+\kappa_{M} &=& \kappa_{0} + M \\
+\nu_{M} &=& \nu_{0} + M \\
+\boldsymbol{\mu}_{M} &=& \frac{\kappa_{0}}{\kappa_{0}+M} \boldsymbol{\mu}_{0}  +  \frac{M}{\kappa_{0}+M} \overline{\bold{z}_t}^{s}\\
+\Lambda_{M} &=& \Lambda_{0} + S_{\bold{z}_{t}^{s}}\\
+\bold{q}_{M} &=& \bold{q}_{0} + \sum_{m=1}^{M} z_{t,m}^{c}
+\end{eqnarray}
+where $M$ is the number of auxiliary variables, $\{ \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0} \}$ are the $\mathcal{N}i\mathcal{W}$ prior parameters, $\bold{q}_{0}$ is the $\mathcal{D}ir$ prior parameter, $\bold{z}^{s}$ and $\bold{z}^{c}$ respectively denote the spatial and color features of an auxiliary variable $\bold{z}$, and $\overline{\bold{z}}$ and $S_{\bold{z}}$ respectively denote the sample mean and sample covariance for a set $\bold{z} = \{ z_{1}, \ldots, z_{M} \}$ (of auxiliary variables, in this case), which we can define as
+\begin{eqnarray}
+\label{samplemean}
+\overline{\bold{z}}  &=&  \left( \sum_{m=1}^{M} z_{m} \right) / M\\
+\label{samplecov}
+S_{\bold{z}}  &=&  \sum_{m=1}^{M} (z_{m} - \overline{\bold{z}}) (z_{m} - \overline{\bold{z}})^{T}
+\end{eqnarray}
 
 
 \subsection{Recap of Parameters}
@@ -513,7 +530,7 @@ $\boldsymbol{\mu}_{0}$  &  The mean prior. In experiments performed in Section~\
 $\kappa_{0}$  &  scale factor of the variance of the prior on the mean\\
 $\nu_{0}$  &  scale factor of the variance of the prior on the covariance\\
 $\Lambda_{0}$  &  shape factor of the prior on the covariance\\
-$q_{0}$  &  scale factor of the prior on the multinomial counts
+$\bold{q}_{0}$  &  scale factor of the prior on the multinomial counts
 \end{tabular}
 \end{center} \vspace{5mm}
 The following parameter dictates characteristics involving the movement of objects
@@ -552,20 +569,37 @@ where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its ar
 \label{del_rho_form}
 l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
 \end{equation}
-The MCMC sampler described in this section operates in this alternate representation, which we can formulate, for each time step $t \in \{1, \ldots, T\}$ and observation $i \in \{ 1, \ldots, N_{t} \}$ at time $t$, as
+The MCMC sampler described in this section operates in this alternate representation, which we can write, for each time step $t \in \{1, \ldots, T\}$ and clusters $k \in \{ 1, \ldots, K_{t} \} $ at time $t$, as
+% \begin{align}
+% \begin{split}
+% 	 \bold{x}_{i} | c_{i}, \theta_{c_{i},t} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i},t}, \Sigma_{c_{i},t})  \mathcal{M}n(\bold{p}_{c_{i},t}) \\
+% 	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
+% 	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1\\
+% 	\theta_{k, t} | \theta_{k, t-1}, \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0}  &\sim 
+% \begin{cases}
+% 	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
+% 	\mathbb{G}_{0}(\boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0})  \hspace{15pt} \text{if } k = K_{t-1} + 1
+% \end{cases}
+% \end{split}
+% \end{align}
+% where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}.
 \begin{align}
 \begin{split}
-	 \bold{x}_{i} | c_{i}, \theta_{c_{i},t} &\sim \mathcal{N}(\boldsymbol{\mu}_{c_{i},t}, \Sigma_{c_{i},t})  \mathcal{M}n(\bold{p}_{c_{i},t}) \\
-	c_{i} | c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha  &\sim  \text{CRP}(c_{1}, \ldots, c_{i-1}, d_{1}, \ldots, d_{i}, \alpha) \\
-	d_{i} | \rho  &\sim \text{Geo}(\rho) + i + 1\\
-	\theta_{k, t} | \theta_{k, t-1}, \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0}  &\sim 
+d_{i,t} | \rho  &\sim \text{Geo}(\rho) + t + 1 \\
+\theta_{k, t} | \theta_{k, t-1}  &\sim
 \begin{cases}
-	\text{TK} \hspace{12pt} \text{if } k \in \{ 1, \ldots, K_{t-1}  \} \\
-	\mathbb{G}_{0}(\boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0})  \hspace{15pt} \text{if } k = K_{t-1} + 1
-\end{cases}
+P(\theta_{k,t} | \theta_{k,t-1}) \hspace{2mm} \text{if} \hspace{2mm} k \in \{ 1, \ldots, K_{t} \} \\
+\mathbb{G}_{0} \hspace{2mm} \text{if} \hspace{2mm} k = K_{t} + 1
+\end{cases} \\
+c_{i,t} | \bold{c}_{1}, \ldots, \bold{c}_{t-1}, \bold{d}_{1}, \ldots, \bold{d}_{t-1}, \alpha  &\sim  \text{CRP}(\bold{c}_{1}, \ldots, \bold{c}_{t-1}, \bold{d}_{1}, \ldots, \bold{d}_{t-1}, \alpha) \\
+\bold{x}_{i,t} | c_{i,t}, \theta_{c_{i,t},t}  &\sim  F(\theta_{c_{i,t}, t})
 \end{split}
 \end{align}
-where TK stands for the transition kernel, given in \eqref{transker1} and \eqref{transker2}, and the base distribution $\mathbb{G}_{0}$ is given in \eqref{basedistro}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
+where $P(\theta_{k,t} | \theta_{k,t-1})$ is defined in \eqref{transker1} and \eqref{transker2}, $\mathbb{G}_{0}$ is defined in \eqref{basedistro}, CRP is defined in \eqref{CRP}, and $F(\theta_{c_{i,t}, t})$ is defined in \eqref{likelihood}.
+
+
+
+This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
 \begin{figure}[h]
         \center{\includegraphics[width=100mm]{../img/gpuddp_gm_3.pdf}}
         \caption{Graphical model of the deletion variable and auxiliary variable transition kernel representation of the GPUDDPM}
@@ -615,17 +649,17 @@ P(\theta_{k,t} | state) & = P(\bold{x}_{i} | \theta_{k,t}) P(z_{k,t+1,1:M} | \th
 \end{align}
 Where the parameters in the above distribution are given when the data at time $t$, auxiliary variables $z_{k,t-1,1:M}$ at time $t-1$, and auxiliary variables $z_{k,t,1:M}$ at time $t$, are taken to be the observations in the following Bayesian updates
 \begin{eqnarray}
-k_{N} &=& k_{0} + N \\
-v_{N} &=& v_{0} + N \\
-\boldsymbol{\mu}_{N} &=& \frac{k_{0}}{k_{0}+N} \boldsymbol{\mu}_{0}  +  \frac{N}{k_{0}+N} \overline{\bold{x}}^{s}\\
+\kappa_{N} &=& \kappa_{0} + N \\
+\nu_{N} &=& \nu_{0} + N \\
+\boldsymbol{\mu}_{N} &=& \frac{\kappa_{0}}{\kappa_{0}+N} \boldsymbol{\mu}_{0}  +  \frac{N}{\kappa_{0}+N} \overline{\bold{x}}^{s}\\
 \Lambda_{N} &=& \Lambda_{0} + S_{\bold{x}^{s}}\\
-\bold{q}_{N} &=& \bold{q}_{0} + \sum_{i=1}^{N} \bold{x}^{c}
+\bold{q}_{N} &=& \bold{q}_{0} + \sum_{i=1}^{N} \bold{x}_{i}^{c}
 \end{eqnarray}
-where $N$ is the number of observations, $\{ \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{N} \}$ are the $\mathcal{N}i\mathcal{W}$ prior parameters, $\bold{q}_{0}$ is the $\mathcal{D}ir$ prior parameter, $\bold{x}^{s}$ and $\bold{x}^{c}$ respectively denote the spatial and color features of the observations, and $\overline{\bold{x}}$ and $S_{\bold{x}}$ respectively denote the sample mean and sample covariance for a set of observations $\bold{x}$, defined to be
-\begin{eqnarray}
-\overline{\bold{x}}  &=&  \left( \sum_{i=1}^{N} \bold{x}_{i} \right) / N\\
-S_{\bold{x}}  &=&  \sum_{i=1}^{N} (\bold{x}_{i} - \overline{\bold{x}}) (\bold{x}_{i} - \overline{\bold{x}})^{T}
-\end{eqnarray}
+where $N$ is the number of observations, $\{ \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0} \}$ are the $\mathcal{N}i\mathcal{W}$ prior parameters, $\bold{q}_{0}$ is the $\mathcal{D}ir$ prior parameter, $\bold{x}^{s}$ and $\bold{x}^{c}$ respectively denote the spatial and color features of the observations, and $\overline{\bold{x}}$ and $S_{\bold{x}}$ respectively denote the sample mean and sample covariance for a set of observations $\bold{x}$, defined in \eqref{samplemean} and \eqref{samplecov}.
+% \begin{eqnarray}
+% \overline{\bold{x}}  &=&  \left( \sum_{i=1}^{N} \bold{x}_{i} \right) / N\\
+% S_{\bold{x}}  &=&  \sum_{i=1}^{N} (\bold{x}_{i} - \overline{\bold{x}}) (\bold{x}_{i} - \overline{\bold{x}})^{T}
+% \end{eqnarray}
 
 % \subsubsection{Metropolis-Hastings Algorithm}
 
@@ -691,7 +725,7 @@ Before the samples can be iteratively drawn from each element of the state given
 \subsection{SMC Inference}
 \label{sec:SMC}
 
-This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. The algorithm operates by 
+This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of sample of the assignment for each observation $\bold{x}_{1,t}, \ldots, \bold{x}_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant importance distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a subset of the particles are resampled and kept. \willie{Gibbs sampling is used to generate the samples associated with each particle at each time step.}
 
 \begin{algorithm}
 \caption{Sequential Monte Carlo Inference for the GPUDDPM}
@@ -728,25 +762,84 @@ This section details a Sequential Monte Carlo (SMC) sampler---also known as a pa
 \end{algorithmic}
 \end{algorithm}
 
+
+\begin{algorithm}
+\caption{Sequential Monte Carlo Inference for the GPUDDPM}
+\label{alg:SMC}
+\begin{algorithmic}[1]
+\FOR{$l = 1 : L$}
+\STATE $w_{0}^{(l)} \leftarrow 1/L$ \hfill $\triangleright$ initialize weights
+\ENDFOR
+\FOR{$t = 1 : T$}
+\FOR{$l = 1 : L$}
+\STATE $K_{t}^{(l)}  \leftarrow K_{t-1}^{(l)}$
+\STATE $m_{1:K_{t}^{(l)}, t}^{(l)} \leftarrow m_{1:K_{t-1}^{(l)}, t-1}^{(l)}$
+\FOR{$s = 1 : S$}
+\FOR{$i = 1 : N_{t}$}
+\IF{$s=1$}
+\STATE Sample $c_{i,t}^{(l)} \sim P(c_{i,t}^{(l)} | m_{1:K_{t-1}^{(l)}, t-1}^{(l)}, \theta_{1:K_{t-1}^{(l)}, t-1}^{(l)} )$
+\STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} + 1$
+\ELSE
+\STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} - 1$
+\STATE Sample $c_{i,t}^{(l)} \sim P(c_{i,t}^{(l)} | m_{1:K_{t}^{(l)}, t}^{(l)}, \theta_{1:K_{t}^{(l)}, t}^{(l)} )$  \hfill $\triangleright$ eq.~\eqref{smc_assig_eqn}
+\STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} + 1$
+\ENDIF
+\IF{$c_{i,t}^{(l)} = K_{t}^{(l)} + 1$}
+\STATE Sample $\theta_{c_{i,t}^{(l)}, t}^{(l)} \sim q_{1}(\bold{x}_{i,t})$ \hfill $\triangleright$ eq.~\eqref{smc_q1_eqn}
+\STATE $K_{t}^{(l)} \leftarrow K_{t}^{(l)} + 1$
+\STATE $m_{K_{t}^{(l)},t}^{(l)} \leftarrow 1$
+\ENDIF
+\ENDFOR
+\FOR{$k = 1 : K_{t}^{(l)}$}
+\IF{$k > K_{t-1}^{(l)}$}
+\STATE Sample
+\ELSIF{$k \leq K_{t-1}^{(l)}$ and $ \#\{ \bold{x}_{1:N_{t}, t} = k \} > 0$}
+\STATE Sample
+\ELSIF{$m_{k,t}^{(l)} > 0$}
+\STATE Sample
+\ENDIF
+\IF{$s=S$}
+\STATE Sample
+\ENDIF
+\ENDFOR
+\ENDFOR
+\STATE Calculate weight of particle
+\ENDFOR
+\STATE Resample (only keep some of the $L$ particles).
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+
 A few key distributions used in the SMC algorithm are shown below.
 
 \subsubsection{Proposal Distribution for Assignments $c_{i}$}
+\label{sec:smc_proposal_1}
+
 The probability of assignments given current cluster sizes and cluster parameters can be written as
 \begin{equation}
+\label{smc_assig_eqn}
 P(c_{i} = k) = P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )
 \end{equation}
 
 
 \subsubsection{Proposal Distribution $q_{1}$}
+\label{sec:smc_proposal_2}
 
 \begin{equation}
+\label{smc_q1_eqn}
 P(\theta_{k,t}) = P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )
 \end{equation}
 
 
 \subsubsection{Proposal Distribution $q_{2}$}
+\label{sec:smc_proposal_3}
 
 \begin{equation}
+\label{smc_q2_eqn}
 P(\theta_{k,t}) = 	P(c_{i} | m_{1:K_{t}, i-1}, \theta_{1:K_{t}, t} )
 \end{equation}
 
