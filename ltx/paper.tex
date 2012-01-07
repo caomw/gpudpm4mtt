@@ -1,7 +1,7 @@
 % header stuff
 % ------------
 
-\documentclass[smallcondensed, draft]{svjour3}
+\documentclass[smallcondensed, final]{svjour3}
 % \documentclass[smallcondensed, final]{svjour3}[1/1/2012]
 \usepackage[square,numbers]{natbib}
 \usepackage{amsmath, epsfig}
@@ -387,6 +387,7 @@ P(c_{i,t}=k  | m_{1:K_{t},t}) =
 \end{equation}
 $\forall i \in \{1, \ldots, N_{t} \}$, where there exists $K_{t}$ clusters at time $t$, and we give a newly created cluster the index $K_{t+1}$. Note the similarity between the above definition and the Chinese resturant process of the DPM given by \eqref{crp_rep}. The deletion and Chinese resturant procedures together comprise what \cite{caron_2007} refers to as the ``Generalized Polya Urn''. Using the DEL and CRP distributions given above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$, and each cluster $k \in \{ 1, \ldots, K_{t} \}$ at time $t$,  % and observation $i \in \{ 1, \ldots, N_{t} \}$ at $t$,
 \begin{align}
+\label{gpuddpm_def}
 \begin{split}
 m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho  &\sim \text{DEL}(m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) \\
 \theta_{k, t} | \theta_{k, t-1}   &\sim
@@ -591,7 +592,7 @@ where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution,
 % transition kernel
 % -----------------
 
-\subsubsection{Transition Kernels and Motion Behavior}
+\subsubsection{Transition Kernel and Motion Model}
 
 We wish to formulate a transition kernel $P(\theta_{t} | \theta_{t-1})$ that provides a reasonable representation of how we expect tracked objects to move over time. In the interest of formulating a model with the intention of using it to track arbitrary objects, we do not wish to make many assumptions about the long-term behavior of objects. For example, we choose not to adopt a transition kernel that incorporates object dynamics, though a transition kernel that models this or other sophisticated behavioral tendencies could potentially be implemented in future works if one knows that they are consistent characteristics of an object's movement.
 
@@ -683,7 +684,7 @@ We have not found an easily justifiable way to choose parameters. For the appear
 
 \section{Inference}
 \label{sec:inference}
-Algorithms that infer latent model parameters in a Bayesian manner given the data gained during extraction provide detection and tracking results. By formulating the detection and tracking task in terms of a generative model, a variety of methods previously developed for statistical inference can be readily applied; we separate presentations of model and inference so that multiple inference methods, each with its own benefits in terms of precision and speed, can be formulated and applied independently to gain detection and tracking results. This section provides background on the two inference procedures implemented in this study, both used to perform Bayesian inference on the model described in Section~\ref{sec:modelspec}. The first is a type of Markov Chain Monte Carlo (MCMC) batch inference, which uses Gibbs sampling to generate samples from a posterior distribution over a model, and the second is a type of Sequential Monte Carlo (SMC) inference, also known as a particle filter, which also generates samples from a posterior information, but in a sequential manner that operates by making use of the time-dependent nature of the model.
+Algorithms that infer latent model parameters via Bayesian inference given the data gained during extraction provide detection and tracking results. By formulating the detection and tracking task in terms of a generative model, a variety of methods previously developed for statistical inference can be readily applied; we separate presentations of model and inference so that multiple inference methods, each with its own benefits in terms of precision and speed, can be formulated as independent algorithms for detection and tracking. This section provides background on the two inference algorithms implemented in this study, which are both used to perform Bayesian inference on the model described in Section~\ref{sec:modelspec}. The first is a type of Markov Chain Monte Carlo (MCMC) batch inference, which uses Gibbs sampling to generate samples from the posterior distribution of the model. The second is a type of Sequential Monte Carlo (SMC) inference, also known as a particle filter, which also generates samples from the posterior distribution of the model, but in a sequential manner that makes use of the time-dependent nature of the data.
 
 
 
@@ -697,12 +698,12 @@ Algorithms that infer latent model parameters in a Bayesian manner given the dat
 
 This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which provides a method to carry out unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution---i.e. it implements Gibbs sampling---in order to gain approximate samples from the posterior distribution of the cluster parameters given the data. Additionally, this sampler makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions.
 
-The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpuddpm}. This representation includes cluster size $m$ (the number of observations assigned to a given cluster), which is standard in DPM constructions. To capture time-dependence, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the sizes $m$ over time. Instead of incorporating cluster size variables $m$ directly, we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time when observations are lost from a cluster . At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. In particular, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. With these variables, we can now express the $m_{k}$ value at time $t$ as
+The generative model associated with the GPUDDPM is illustrated in Section~\ref{sec:gpuddpm}. To allow for modeling time-dependent data, the GPUDDPM allows clusters to `lose assigned observations' in a deletion step, which modifies the values of the cluster sizes over time. Instead of incorporating the cluster size variable $m$ directly (as it was in the definition of the GPUDDPM given in \eqref{gpuddpm_def}), we can formulate an equivalent model which makes use of deletion variables $d$, which represent the time at which observations are lost from a cluster. Specifically, we introduce variables $d_{1}, \ldots, d_{N}$ which denote the times at which the assignments of given observations are considered to be removed. At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. With these we can express the size of cluster $k$ at time $t$, $m_{k,t}$, as
 \begin{equation}
 \label{compute_clust_size}
 m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
 \end{equation}
-where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $x_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
+where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $\bold{x}_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
 \begin{equation}
 \label{del_rho_form}
 l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
@@ -734,7 +735,7 @@ c_{i,t} | \bold{c}_{1:t-1}, \bold{d}_{1:t-1}, \alpha  &\sim  \text{CRP}(\bold{c}
 \bold{x}_{i,t} | c_{i,t}, \theta_{c_{i,t},t}  &\sim  F(\theta_{c_{i,t}, t})
 \end{split}
 \end{align}
-where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$ (for $N_{t}$ observations at time $t$), $\bold{d}_{t} = d_{1,t}, \ldots, d_{N_{t}, t}$, $P(\theta_{k,t} | \theta_{k,t-1})$ is defined in \eqref{transker1} and \eqref{transker2}, $\mathbb{G}_{0}$ is defined in \eqref{basedistro}, CRP is defined in \eqref{CRP}, and $F(\theta_{c_{i,t}, t})$ is defined in \eqref{likelihood}. This formulation of the GPUDDPM is also used in \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
+where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$ (for $N_{t}$ observations at time $t$), $\bold{d}_{t} = d_{1,t}, \ldots, d_{N_{t}, t}$, $P(\theta_{k,t} | \theta_{k,t-1})$ is defined in \eqref{transker1} and \eqref{transker2}, $\mathbb{G}_{0}$ is defined in \eqref{basedistro}, CRP is defined in \eqref{CRP}, and $F(\theta_{c_{i,t}, t})$ is defined in \eqref{likelihood}. This formulation of the GPUDDPM is also used by \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
 \begin{figure}[h]
         \center{\includegraphics[width=100mm]{../img/gpuddp_gm_3.pdf}}
         \caption{Graphical model of the deletion variable and auxiliary variable transition kernel representation of the GPUDDPM}
@@ -752,8 +753,8 @@ The sampler performs an MCMC method known as Gibbs sampling; it operates by iter
 
 
 
-% MCMC inference : sampling assignment variables
-% ----------------------------------------------
+% mcmc: sampling assignment variables
+% -----------------------------------
 
 \subsubsection{Sampling Assignment Variables $c_{i,t}$}
 \label{sec:sample_assignments}
@@ -761,7 +762,9 @@ The sampler performs an MCMC method known as Gibbs sampling; it operates by iter
 A value proportional to the posterior probability can be computed for each possible value that $c_{i,t}$ may take on; these values allow us to construct a discrete probability distribution that may be drawn from to get a sample from the posterior distribution over assignments. The possible values that the assignment may take on are $c_{i,t} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between time $t$ and the assignment's associated deletion time $d_{i,t}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i,t}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
 \begin{equation}
 \begin{split}
-p(c_{i,t} = k | \text{state}) & \propto \prod_{t' = t}^{d_{i,t}} P(c_{i,t'} | m_{k,t'-1}, \bold{c}_{1:t'-1}) \\
+p(c_{i,t} = k | \text{State}) & \propto
+\prod_{i'=1}^{N_{t}}  \text{CRP}(c_{i',t} | \bold{m}_{t-1}, \alpha) \\
+& \times \prod_{t' = t+1}^{d_{i,t}}  \prod_{i'=1}^{N_{t'}}   \text{CRP}(c_{i',t'} | \bold{m}_{t'-1}, \alpha) \\
  & \times
 \begin{cases}
 	P(\bold{x}_{i,t} | \theta_{k,t})                                        \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
@@ -769,29 +772,34 @@ p(c_{i,t} = k | \text{state}) & \propto \prod_{t' = t}^{d_{i,t}} P(c_{i,t'} | m_
 \end{cases}
 \end{split}
 \end{equation}
-where $t$ is the time of observation $i$, and the distribution under the product $P(c_{i'} | m_{1:K_{t}^{'}, i'-1}, c_{1:i'-1})$ is given by 
-\begin{equation}
-P(c_{i} = k | m_{1:K_{t}^{'}, i-1}, c_{1:i-1}, \alpha) \propto 
-\begin{cases}
-m_{k, i-1} \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
-\alpha \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
-\end{cases}
-\end{equation}
-which is taken under the situation where $c = k$. Note that the above integral can be determined analytically to give
+% where $t$ is the time of observation $i$, and the distribution under the product $P(c_{i'} | m_{1:K_{t}^{'}, i'-1}, c_{1:i'-1})$ is given by 
+%\begin{equation}
+%P(c_{i} = k | m_{1:K_{t}^{'}, i-1}, c_{1:i-1}, \alpha) \propto 
+%\begin{cases}
+%m_{k, i-1} \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
+%\alpha \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
+%\end{cases}
+%\end{equation}
+where the distribution CRP is given by \eqref{crp_rep}, and the sizes of the clusters $\bold{m}_{t'-1}$ are calculated given the fact that $c_{i,t} = k$. Note that the above integral can be determined analytically to give
 \begin{equation}
 \label{marginal_obs_prob}
-\int P(\bold{x}_{i} | \theta) \mathbb{G}_{0}(\theta)d\theta = \text{Student}()
+\int P(\bold{x}_{i} | \theta) \mathbb{G}_{0}(\theta)d\theta = \text{Student}_{\nu_{n} - 1}(\mu_{n}, \Lambda_{n}/(\kappa_{n}(\nu_{n}-1)))
 \end{equation}
-where ``Student'' denotes the Student's t distribution, where we follow the three-value parameterization (location parameter, scale parameter, and degrees of freedom) given in \willie{cite}.
+where ``Student'' denotes the Student's t distribution, where we follow the three-value parameterization (location parameter, scale parameter, and degrees of freedom) given in \cite{gelman2004bayesian}.
 
-If a new cluster is sampled as an assignment, the cluster parameters and auxiliary variables must be initialized for all time steps. \willie{finish writing the few tricky technical stuff here}
+%%%%%
+% Need to include ratio of Dirichlet also in the above posterior predictive distro of a single observation
+%%%%%
+
+
+If a new cluster is sampled as an assignment, the cluster parameters and auxiliary variables for this new cluster must be initialized for all time steps before sampling can proceed. In experiments, this initialization was carried out by iteratively samping forward to time T and backwards to time 1 via the transition kernel.
 
 
 
 
 
-% MCMC inference : sampling cluster parameters
-% --------------------------------------------
+% mcmc: sampling cluster parameters
+% ---------------------------------
 
 \subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
 The conjugacy of the chosen distributions in the appearance model and transition kernel allow for posterior samples of the cluster parameters to be easily gained, and gives us
@@ -801,11 +809,11 @@ The conjugacy of the chosen distributions in the appearance model and transition
 % \end{eqnarray}
 \begin{align}
 \begin{split}
-P(\theta_{k,t} | state) & = P(\bold{x}_{i} | \theta_{k,t}) P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) \\
+P(\theta_{k,t} | \text{State}) & = P(\bold{x}_{i,t} | \theta_{k,t}) P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) \\
  & = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{k,t}, \Sigma_{k,t} | \boldsymbol{\mu}_{N}, k_{N}, v_{N}, \Lambda_{N})  \mathcal{D}ir( \bold{p}_{k,t} | \bold{q}_{N})
 \end{split}
 \end{align}
-Where the parameters in the above distribution are given when the data at time $t$, auxiliary variables $z_{k,t-1,1:M}$ at time $t-1$, and auxiliary variables $z_{k,t,1:M}$ at time $t$, are taken to be the observations in the following Bayesian updates
+Where the parameters in the above distribution are given when the data at time $t$, auxiliary variables $z_{k,t-1,1:M}$ at time $t-1$, and auxiliary variables $z_{k,t,1:M}$ at time $t$, are taken to be the observations for the following Bayesian updates
 \begin{eqnarray}
 \label{bayesian_update_1}
 \kappa_{N} &=& \kappa_{0} + N \\
@@ -827,13 +835,13 @@ where $N$ is the number of observations, $\{ \boldsymbol{\mu}_{0}, \kappa_{0}, \
 
 
 
-% MCMC inference : sampling auxiliary variables
-% ---------------------------------------------
+% mcmc: sampling auxiliary variables
+% ----------------------------------
 
 \subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
 The posterior distribution of each of the auxiliary variables $z_{k,t,m}$ can be written as
 \begin{equation}
-P(z_{k,t,m} | state) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
+P(z_{k,t,m} | \text{State}) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
 \end{equation}
 This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample. The M-H algorithm is outlined in Algorithm 1.%Algorithm~\ref{alg:MH}. \willie{am i citing wrong?}
 
@@ -875,8 +883,8 @@ and keep this sample with probability $min(1, r_{accept})$.
 
 
 
-% MCMC inference : sampling deletion variables
-% --------------------------------------------
+% mcmc: sampling deletion variables
+% ---------------------------------
 
 \subsubsection{Sampling Deletion Variables $d_{i}$}
 Computing the posterior distribution (or a value proportional to this distribution) for each possible value that a given deletion variable may take on (in a manner similar to how samples from the posterior distribution of the assignment variables $c_{i}$ are gained in Section~\ref{sec:sample_assignments}) may be computationally expensive due to the large number of potential deletion times. To remedy this, the M-H algorithm may again be used to sample from the posterior, where the prior distribution for the deletion times can be used to propose new samples $d_{i}^{*}$. As the `lifetime' of each assignment can be shown to be geometrically distributed, we can propose a new deletion time sample with
@@ -886,14 +894,18 @@ l_{i}  &\sim  \text{Geo}(\rho)  \\
 d_{i}^{*}  &= l_{i} + t + 1
 \end{split}
 \end{align}
-and accept or reject this sample using the standard M-H acceptance ratio \willie{write computation of ratio}.
+and accept or reject this sample using the standard M-H acceptance ratio. 
+
+%%%%%
+% need to include the "standard M-H acceptance ratio"
+%%%%%
 
 
 
 
 
-% MCMC inference : initializing the sampler
-% -----------------------------------------
+% mcmc: initializing the sampler
+% ------------------------------
 
 \subsubsection{Initializing the Sampler}
 Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference.
@@ -908,7 +920,7 @@ Before the samples can be iteratively drawn from each element of the state given
 \subsection{SMC Inference}
 \label{sec:SMC}
 
-This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of sample of the assignment for each observation $\bold{x}_{1,t}, \ldots, \bold{x}_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a subset of the particles are resampled and kept. \willie{Gibbs sampling is used to generate the samples associated with each particle at each time step.}
+This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of a sample from the posterior distribution over the assignment for each observation, $c_{1,t}, \ldots, c_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a subset of the particles are resampled and kept via a resampling process. Furthermore, within each time step, Gibbs sampling is used to generate the samples associated with each particle.
 
 The sequence of target distributions for the SMC algorithm may be written as
 \begin{equation}
@@ -965,6 +977,11 @@ where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}
 % \end{algorithm}
 
 
+%%%%%
+% in SMC algorithm: still need to include computing r and make sure things are correct
+%%%%%
+
+
 \begin{algorithm}[!]
 \caption{Sequential Monte Carlo Inference for the GPUDDPM}
 \label{alg:SMC}
@@ -972,13 +989,13 @@ where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}
 \FOR{$l = 1 : L$}
 \STATE $w_{0}^{(l)} \leftarrow 1/L$ \hfill $\triangleright$ initialize weights
 \ENDFOR
-\STATE $K_{0}^{(l)} \leftarrow 0$
-\FOR{$t = 1 : T$}
-\FOR{$l = 1 : L$}
+\STATE $K_{0}^{(l)} \leftarrow 0$ \hfill $\triangleright$ initialize \# of clusters
+\FOR{$t = 1 : T  \text{  (\# of frames})$}
+\FOR{$l = 1 : L  \text{  (\# of particles})$}
 \STATE $K_{t}^{(l)}  \leftarrow K_{t-1}^{(l)}$
 \STATE $m_{1:K_{t}^{(l)}, t}^{(l)} \leftarrow m_{1:K_{t-1}^{(l)}, t-1}^{(l)}$
-\FOR{$s = 1 : S$}
-\FOR{$i = 1 : N_{t}$}
+\FOR{$s = 1 : S \text{  (\# of Gibbs samples})$}
+\FOR{$i = 1 : N_{t} \text{  (\# of observations at frame $t$})$}
 \IF{$s=1$}
 \STATE Sample $c_{i,t}^{(l)} \sim P \left( c_{i,t}^{(l)} | m_{1:K_{t-1}^{(l)}, t-1}^{(l)}, \theta_{1:K_{t-1}^{(l)}, t-1}^{(l)}, \alpha \right)$  \hfill $\triangleright$ eq.~\eqref{smc_assig_eqn}
 \STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} + 1$
@@ -987,13 +1004,13 @@ where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}
 \STATE Sample $c_{i,t}^{(l)} \sim P \left( c_{i,t}^{(l)} | m_{1:K_{t}^{(l)}, t}^{(l)}, \theta_{1:K_{t}^{(l)}, t}^{(l)}, \alpha \right)$  \hfill $\triangleright$ eq.~\eqref{smc_assig_eqn}
 \STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} + 1$
 \ENDIF
-\IF{$c_{i,t}^{(l)} = K_{t}^{(l)} + 1$}
+\IF{$c_{i,t}^{(l)} = K_{t}^{(l)} + 1  \text{  (a new cluster)}$}
 \STATE Sample $\theta_{c_{i,t}^{(l)}, t}^{(l)} \sim q_{1}(\bold{x}_{i,t})$ \hfill $\triangleright$ eq.~\eqref{smc_q1_eqn}
 \STATE $K_{t}^{(l)} \leftarrow K_{t}^{(l)} + 1$
 \STATE $m_{K_{t}^{(l)},t}^{(l)} \leftarrow 1$
 \ENDIF
 \ENDFOR
-\FOR{$k = 1 : K_{t}^{(l)}$}
+\FOR{$k = 1 : K_{t}^{(l)}  \text{  (\# of clusters at frame $t$})$}
 \IF{$k > K_{t-1}^{(l)}$}
 \STATE Sample $\theta_{k,t}^{(l)} \sim q_{1}(\{ \bold{x}_{1:N_{t}, t} = k \})$  \hfill $\triangleright$ eq.~\eqref{smc_q1_eqn}
 \ELSIF{$k \leq K_{t-1}^{(l)}$ and $ \#\{ \bold{x}_{1:N_{t}, t} = k \} > 0$}
@@ -1009,9 +1026,9 @@ where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}
 \STATE $\tilde{w}_{t}^{(l)} \leftarrow w_{t-1}^{(l)} \times \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})}	{P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) } \times r $  \hfill $\triangleright$ eq.~\eqref{smc_weight_eqn}
 \ENDFOR
 \FOR {l = 1 : L}
-\STATE $w_{t}^{(l)} \leftarrow \frac{\tilde{w}_{t}^{(l)}}{\sum_{l=1}^{L} \tilde{w}_{t}^{(l)} }$
+\STATE $w_{t}^{(l)} \leftarrow \frac{\tilde{w}_{t}^{(l)}}{\sum_{l=1}^{L} \tilde{w}_{t}^{(l)} }$   \hfill $\triangleright$ normalize weights
 \ENDFOR
-\STATE Resample particles $1, \ldots, L$ and weights $w^{(1)}, \ldots, w^{(L)}$
+\STATE Resample particles $1, \ldots, L$ and weights $w^{(1)}, \ldots, w^{(L)}$   \hfill $\triangleright$ Section~\ref{sec:resample}
 \ENDFOR
 \end{algorithmic}
 \end{algorithm}
@@ -1088,6 +1105,7 @@ where $r$ denotes the computed ratio for the particle, and we define
 
 
 \subsection{Resampling Particles and Particle Weights}
+\label{sec:resample}
 
 At each time step $t \in \{ 1, \ldots, T \}$, after all of the $L$ particles have been sampled and their associated weights computed, a resampling step is carried out. In this step, $L$ new particles are sampled from currnt set of $L$ particles.
 
@@ -1097,7 +1115,11 @@ At each time step $t \in \{ 1, \ldots, T \}$, after all of the $L$ particles hav
 
 \subsection{Modeling Background Noise}
 
-Noisy extraction procedures may result in spurrious data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ to be a two component mixture, where one component is the base distribution and the other is a multivariate normal distribution with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution \willie{need more rigorus terms here} with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$.
+Noisy extraction procedures may result in spurrious data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ to be a two component mixture, where one component is the base distribution and the other is a multivariate normal distribution with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$.
+
+%%%%%
+% define more rigorously, and then say why we don't include in experiments?
+%%%%%
 
 
 \subsection{From Inference to Tracking Results}
@@ -1206,7 +1228,11 @@ Synthetic videos provide controlled scenarios in which aspects of the technique 
 
 The first synthetic video experiment aimed to test the ability of the model and inference procedure to maintain the identity of independent objects based on color information alone. Two videos were constructed, both containing a red square (rgb value $[255,0,0]$ and size $20$ x $20$ pixels) and a blue square (rgb value $[0,0,255]$ and size $20$ x $20$ pixels). In both videos, the squares begin at opposite sides of the scene at frame $f=1$ and travel towards each other, arriving at the same location at $f=100$ (where the blue square occludes the red square). The second half of the two videos differ in that both squares in the first video continue in the same direction and end at the other's starting positions at $f=200$, and both squares in the second video reverse directions and end at their initial starting positions at $f=200$. The frame difference extraction yields identical spatial features in both videos; hence, successful tracking depends fully on the incorporation of color information into the model.
 
-Parameters were set to the same values for inference on both videos, using the method outlined in Section~\ref{sec:parameter_recap} to choose parameters. The chosen values were $\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$. Inference was carried out using the MCMC algorithm (Section~\ref{sec:MCMC}); the posterior sample taken as the result correctly tracked both colored squares through occlusion in both videos, and is shown in Figure~\ref{fig:synth_one_plot}. \willie{still need to include performance metric results for these synthetic datasets.}.
+Parameters were set to the same values for inference on both videos, using the method outlined in Section~\ref{sec:parameter_recap} to choose parameters. The chosen values were $\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$. Inference was carried out using the MCMC algorithm (Section~\ref{sec:MCMC}); the posterior sample taken as the result correctly tracked both colored squares through occlusion in both videos, and is shown in Figure~\ref{fig:synth_one_plot}. 
+
+%%%%%
+% I still need to include performance metric results for these synthetic datasets.}.
+%%%%%
 
 \begin{figure}
   \centering               
@@ -1222,9 +1248,9 @@ Parameters were set to the same values for inference on both videos, using the m
 
 The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
 
-Parameter values were chosen in the same way, and set to the same values, as the first synthetic experiment. The MCMC inference algorithm correctly tracked all three objects through occlusion and inferred the appearance and size shifts. Figure~\ref{fig:synth2_alphaimg} shows a sample from the posterior distribution of the cluster parameters, where the mean and oval representation of the covariance matrix (with $0.5$ confidence value) are overlayed on the data. The data is plotted in three dimensional space, where time is represented on the vertical axis, and each data point is colored by its assignment to one of the three inferred clusters. Both the cluster parameter sample and data are overlaid on three semi-transparent planes showing the objecs in the video in three frames. \willie{still need to include performance metric results for this synthetic dataset}.
+Parameter values were chosen in the same way, and set to the same values, as the first synthetic experiment. The MCMC inference algorithm correctly tracked all three objects through occlusion and inferred the appearance and size shifts. Figure~\ref{fig:synth_one_plot} shows a sample from the posterior distribution of the cluster parameters, where the mean and oval representation of the covariance matrix (with $0.5$ confidence value) are overlayed on the data. The data is plotted in three dimensional space, where time is represented on the vertical axis, and the assignment of each data point to one of the three inferred clusters is denoted by color and marker type. 
 
-Groundtruth for the synthetic videos 
+%Both the cluster parameter sample and data are overlaid on three semi-transparent planes showing the objecs in the video in three frames. \willie{still need to include performance metric results for this synthetic dataset}. Groundtruth for the synthetic videos 
 
 % \begin{figure}
 %   \centering               
@@ -1303,13 +1329,16 @@ To calculate performance metrics (both SFDA and ATA), one must specify a confide
   \label{fig:pm_conf}
 \end{figure}
 
-\begin{figure}[h]
-	\centering
-    \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth2_alphaimg_hd.png}}
-    \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2001_alphaimg_hr.png}}
-	\subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2000_4objects.png}}
-    \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two (a), and benchmark datasets PETS2001 (b) and PETS2000 (c), where color represents assignment and the mean and standard deviation are shown. In each plot, the sample and data are overlaid on three images from the experiment.}
-\end{figure}
+
+% 3-panel alpha-img figure that I removed
+
+% \begin{figure}[h]
+% 	\centering
+%     \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/synth2_alphaimg_hd.png}}
+%     \subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2001_alphaimg_hr.png}}
+% 	\subfloat[]{\includegraphics[width=0.33\textwidth]{../img/pets2000_4objects.png}}
+%     \caption{\label{fig:synth2_alphaimg} Sample from posterior of the state for synthetic experiment two (a), and benchmark datasets PETS2001 (b) and PETS2000 (c), where color represents assignment and the mean and standard deviation are shown. In each plot, the sample and data are overlaid on three images from the experiment.}
+% \end{figure}
 
 
 % old figure ideas:
@@ -1338,7 +1367,11 @@ To calculate performance metrics (both SFDA and ATA), one must specify a confide
 
 \subsubsection{PETS2009/2010}
 
-A video dataset used in both the PETS2009 and PETS2010 conferences, called `S2.L1 at time sequence 12.34' was chosen for experimentation due to its prominence in a number of studies \willie{ref papers using this dataset}. This dataset consists of a monocular, stationary camera, 794 frame video sequence. The entire video sequence was used in this experiment. 
+A video dataset used in both the PETS2009 and PETS2010 conferences, called `S2.L1 at time sequence 12.34' was chosen for experimentation due to its prominence in a number of studies \cite{ellis_2010}.
+%%%%%
+% cite other papers that use this dataset?
+%%%%%
+This dataset consists of a monocular, stationary camera, 794 frame video sequence. The entire video sequence was used in this experiment. 
 
 Due to the large number of frames and objects in this video, the SMC algorithm (described in Section~\ref{sec:SMC}) was used for inference. This method of sequential inference was observed, on this dataset, to converge to a better sample in a shorter period of time in comparison with the MCMC algorithm; for this reason, we found that it was better suited for this large dataset.
 
@@ -1451,7 +1484,9 @@ $\alpha$ & $1$  	& $0.2016$ & $0.2365$ & $0.2766$ & $0.2347$ & $0.2766$  \\
 \section*{Discussion}
 \label{sec:discussion}
 
-Discuss parameters somewhere in here. to add in discussion: thoughts about: deletion param vs. dataset size (and tracking through occlusion vs clusters taking over), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects.  we detect movement, which isn’t exactly same as perf. metrics (ie our tracking stops if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
+We have presented a new technique for the unsupervised detection and tracking of arbitrary objects in videos. The primary intention of this technique is to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The GPUDDPM, a time-dependent Dirichlet process mixture, has been introduced, and we have shown how inference on this model allows for the desired clustering of extraction data. Furthermore, we have demonstrated a specific implementation of the model using spatial and color pixel data extracted via frame differencing and provided two algorithms for performing inference on the model to accomplish detection and tracking. Both algorithms were carried out on multiple synthetic and benchmark multi-object video datasets in order to demonstrate an ability to accomplish unsupervised detection and tracking of arbitrary objects in both manufactured and real world settings. We have described and computed standard performance metrics for our method's detection and tracking results, and found it to be comparable with other techniques that were designed for the specific object-types present in the videos in question. These results illustrate the ability of the technique described in this paper to, without modification, detect and track objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion
+
+More to include: more discussion of parameter choices, thoughts about deletion params vs. dataset size (and the tradeoff between tracking through occlusion vs clusters rapidly gaining size), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects. discuss how we detect movement, which isn’t exactly same as authors in the perf. metric paper (ie our tracking is designed to stop if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
 
 
 
