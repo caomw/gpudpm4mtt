@@ -1,7 +1,7 @@
 % header stuff
 % ------------
 
-\documentclass[smallcondensed, final]{svjour3}
+\documentclass[smallcondensed, draft]{svjour3}
 % \documentclass[smallcondensed, final]{svjour3}[1/1/2012]
 \usepackage[square,numbers]{natbib}
 \usepackage{amsmath, epsfig}
@@ -763,7 +763,7 @@ A value proportional to the posterior probability can be computed for each possi
 \begin{equation}
 \begin{split}
 p(c_{i,t} = k | \text{State}) & \propto
-\prod_{i'=1}^{N_{t}}  \text{CRP}(c_{i',t} | \bold{m}_{t-1}, \alpha) \\
+\prod_{i'=i}^{N_{t}}  \text{CRP}(c_{i',t} | \bold{m}_{t-1}, \alpha) \\
 & \times \prod_{t' = t+1}^{d_{i,t}}  \prod_{i'=1}^{N_{t'}}   \text{CRP}(c_{i',t'} | \bold{m}_{t'-1}, \alpha) \\
  & \times
 \begin{cases}
@@ -841,6 +841,7 @@ where $N$ is the number of observations, $\{ \boldsymbol{\mu}_{0}, \kappa_{0}, \
 \subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
 The posterior distribution of each of the auxiliary variables $z_{k,t,m}$ can be written as
 \begin{equation}
+\label{stationary_pdf}
 P(z_{k,t,m} | \text{State}) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
 \end{equation}
 This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample. The M-H algorithm is outlined in Algorithm 1.%Algorithm~\ref{alg:MH}. \willie{am i citing wrong?}
@@ -849,20 +850,21 @@ This distribution does not allow for samples to be easily drawn and thus require
 \label{alg:MH}
 \caption{Metropolis Hastings Algorithm}
 \begin{algorithmic}[1]
-\STATE $f(x)$ is the desired stationary PDF
-\STATE $P(x_{i} | x_{i-1})$ is the proposal pdf
-\STATE Initialize $x_{0}$
-\FOR{$i = 1 : burn\hspace{1pt}in + N$}
-\STATE Draw $x^{*} \sim P(x_{i} | x_{i-1})$
-\STATE Draw $\alpha \sim U(0,1)$
-\STATE $r_{accept} \leftarrow \frac{f(x^{*})P(x_{i-1} | x^{*})} {f(x_{i-1})P(x^{*} | x_{i-1})} $
-\IF{$\alpha < min \{ 1, r_{accept} \} $}
+\STATE $f(x)$ is the stationary PDF from which samples are desired \hfill $\triangleright$ eq. \eqref{stationary_pdf}
+\STATE $q( \cdot | x_{i-1})$ is the proposal pdf \hfill $\triangleright$ eq. \eqref{proposal_distro}
+\STATE $x_{0} \leftarrow$ initialize
+\STATE B $\leftarrow$ \# of burn in samples
+\FOR{$i = 1 : \text{B} + N$}
+\STATE Sample $x^{*} \sim q( \cdot | x_{i-1})$
+\STATE Sample $\alpha \sim \text{Uniform}(0,1)$
+\STATE $r_{accept} \leftarrow \frac{f(x^{*})q(x_{i-1} | x^{*})} {f(x_{i-1})q(x^{*} | x_{i-1})} $ \hfill $\triangleright$  eq. \eqref{accept_ratio}
+\IF{$\alpha < \text{min} \{ 1, r_{accept} \} $}
 \STATE $x_{i} \leftarrow x^{*}$
 \ELSE
 \STATE $x_{i} \leftarrow x_{i-1}$
 \ENDIF
 \ENDFOR
-\STATE Discard samples $x_{1}, \ldots, x_{burn\hspace{1pt}in}$
+\STATE Discard samples $x_{1}, \ldots, x_{\text{B}}$
 \STATE \textbf{Output}: Remaining samples $x_{1}, \ldots, x_{N}$
 \end{algorithmic}
 %\caption{Say thing at end}
@@ -871,13 +873,15 @@ This distribution does not allow for samples to be easily drawn and thus require
 
 The M-H algorithm is used to sample auxiliary variables for each alive cluster. In short, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
 \begin{equation}
+\label{proposal_distro}
 z_{k,t,m}^{*}  \sim  P(z_{k,t,m} | \theta_{k,t}) = \mathcal{N}(z_{k,t,m}^{s} | \boldsymbol{\mu}_{k,t}, \Sigma_{k,t}) \mathcal{M}n(z_{k,t,m}^{c} | \bold{p}_{k,t})
 \end{equation}
 compute the standard M-H acceptance ratio, which in this case (due to the proposal distribution choice) simplifies to 
 \begin{equation}
+\label{accept_ratio}
 r_{accept} = \frac{P(\theta_{k,t-1} | z_{k,t,m}^{*})}{P(\theta_{k,t-1} | z_{k,t,m})}
 \end{equation}
-and keep this sample with probability $min(1, r_{accept})$.
+and keep this sample with probability $\text{min}(1, r_{accept})$.
 
 
 
@@ -920,14 +924,14 @@ Before the samples can be iteratively drawn from each element of the state given
 \subsection{SMC Inference}
 \label{sec:SMC}
 
-This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of a sample from the posterior distribution over the assignment for each observation, $c_{1,t}, \ldots, c_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a subset of the particles are resampled and kept via a resampling process. Furthermore, within each time step, Gibbs sampling is used to generate the samples associated with each particle.
+This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of a sample from the posterior distribution over the assignment for each observation, $c_{1,t}, \ldots, c_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a subset of the particles are resampled and kept via a resampling process. Within each time step, Gibbs sampling is used to generate the samples associated with each particle.
 
 The sequence of target distributions for the SMC algorithm may be written as
 \begin{equation}
 \begin{split}
 %\pi_{t}(c_{1:N_{1}, 1}, \ldots, c_{1:N_{t}, t}, & \theta_{1:K_{1}, 1}, \ldots, \theta_{1:K_{t}, t}, m_{1:K_{1}, 1}, \ldots, m_{1:K_{t}, t}) = \\
 %\pi_{t-1}(c_{1:N_{1}, 1}, \ldots, c_{1:N_{t-1}, t-1}, & \theta_{1:K_{1}, 1}, \ldots, \theta_{1:K_{t-1}, t-1}, m_{1:K_{1}, 1}, \ldots, m_{1:K_{t-1}, t-1}) \\
-\pi_{t}(\bold{c}_{1:t}, \Theta_{1:t}, \bold{m}_{1:t+1}) & =  \pi_{t-1}(\bold{c}_{1:t-1}, \Theta_{1:t-1}, \bold{m}_{1:t})\\
+\pi_{t}(\bold{c}_{1:t}, \Theta_{1:t}, \bold{m}_{1:t}) & =  \pi_{t-1}(\bold{c}_{1:t-1}, \Theta_{1:t-1}, \bold{m}_{1:t-1})\\
 & \times \prod_{i=1}^{N_{t}} P(c_{i,t} | \bold{m}_{t}, \Theta_{t}, \bold{c}_{1:t}, \bold{x}_{1:N_{t}}) \\
 & \times \prod_{k=1}^{K} 
 \begin{cases}
@@ -936,7 +940,7 @@ P(\theta_{k,t} | \theta_{k,t-1}) \hspace{2mm} & \text{if} \hspace{2mm} k \leq K_
 \mathbb{G}_{0} \hspace{18mm} & \text{if} \hspace{2mm} k > K_{t-1}
 \end{split}
 \end{cases} \\
-& \times \prod_{k=1}^{K} \text{DEL}(m_{k,t+1} | m_{k,t}, c_{1:N_{t-1}, t-1}, \rho)
+& \times \prod_{k=1}^{K} \text{DEL}(m_{k,t} | m_{k,t-1}, c_{1:N_{t-1}, t-1}, \rho)
 \end{split}
 \end{equation}
 where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and $\bold{m}_{t} = m_{1,t}, \ldots, m_{K_{t}, t}$ A few distributions referenced in the SMC algorithm are described in detail in the following sections.
@@ -1044,8 +1048,8 @@ The probability of assignments given current cluster sizes, cluster parameters, 
 \begin{equation}
 \label{smc_assig_eqn}
 \begin{split}
-P \left( c_{i,t} | m_{1:K_{t}, t}, \theta_{1:K_{t}, t}, \alpha \right) &\propto\\
-\text{CRP}(m_{1:K_{t}, t}, \alpha) &\times
+P \left( c_{i,t} | m_{1:K_{t}, t}, \theta_{1:K_{t}, t}, \alpha \right) &\propto
+\text{CRP}(m_{1:K_{t}, t}, \alpha) \\ &\times
 \begin{cases}
 P(\bold{x}_{i,t} | \theta_{c_{i,t},t}) \hspace{2mm} \text{if} \hspace{2mm} k \leq K_{t-1} \\
 \int P(\bold{x}_{i,t} | \theta) \mathbb{G}_{0}(\theta)d\theta \hspace{2mm} k > K_{t-1}
@@ -1481,7 +1485,7 @@ $\alpha$ & $1$  	& $0.2016$ & $0.2365$ & $0.2766$ & $0.2347$ & $0.2766$  \\
 
 
 
-\section*{Discussion}
+\section*{Discussion and Conclusion}
 \label{sec:discussion}
 
 We have presented a new technique for the unsupervised detection and tracking of arbitrary objects in videos. The primary intention of this technique is to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The GPUDDPM, a time-dependent Dirichlet process mixture, has been introduced, and we have shown how inference on this model allows for the desired clustering of extraction data. Furthermore, we have demonstrated a specific implementation of the model using spatial and color pixel data extracted via frame differencing and provided two algorithms for performing inference on the model to accomplish detection and tracking. Both algorithms were carried out on multiple synthetic and benchmark multi-object video datasets in order to demonstrate an ability to accomplish unsupervised detection and tracking of arbitrary objects in both manufactured and real world settings. We have described and computed standard performance metrics for our method's detection and tracking results, and found it to be comparable with other techniques that were designed for the specific object-types present in the videos in question. These results illustrate the ability of the technique described in this paper to, without modification, detect and track objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion
@@ -1491,7 +1495,7 @@ More to include: more discussion of parameter choices, thoughts about deletion p
 
 
 
-\section*{Conclusion}
+%\section*{Conclusion}
 
 
 
