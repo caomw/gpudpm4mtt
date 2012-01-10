@@ -1392,13 +1392,13 @@ The SMC inference algorithm yielded a sample from the posterior distribution of 
   \label{fig:pets2009_results}
 \end{figure}
 
-In \cite{ellis_2010}, performance metrics were computed for a number of studies that carried out object detection and tracking for the PETS2009/2010 dataset. As this dataset consists solely of humans, many of these algorithms were developed for the specific purpose of people tracking (i.e. not for general detection and tracking of arbitrary objects); in consequence, many of these studies involve appearance models specifically developed for humans, sometimes making use of their orientation in this specific dataset, and motion models based on assumptions about human motion. We compare SFDA and ATA results of our strategy with these methods to show that our general method can yield comparable results even when compared with object-specific trackers. The following table shows performance metric results for comparison (data published with permission from the authors of \cite{ellis_2010}).
+In \cite{ellis_2010}, performance metrics were computed for a number of studies that carried out object detection and tracking for the PETS2009/2010 dataset. As this dataset consists solely of humans, many of these algorithms were developed for the specific purpose of people tracking (i.e. not for general detection and tracking of arbitrary objects); in consequence, many of these studies involve appearance models specifically developed for humans, sometimes making use of their orientation in this specific dataset, and motion models based on assumptions about human motion. We compare SFDA and ATA results of our strategy with these methods to show that our general method can yield comparable results even when compared with object-specific trackers. Figure~\ref{fig:sfda_and_ata_comparison} shows performance metric results for comparison (data published with permission from the authors of \cite{ellis_2010}).
 \begin{figure}[!]
   \centering
   \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2009full_comp_sfda.pdf}}
   \hspace{1mm}
   \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2009full_comp_ata.pdf}}
-  \caption{Performance metric comparison showing the (a) SFDA and (b) ATA results for submissions to the PETS2009/PETS2010 workshops shows comparable performance with state-of-the-art, object-specific detection and tracking strategies. Results for the technique in this paper are shown in red, and were computed using a covariance confidence interval threshold of 0.35.}
+  \caption{Performance metric comparison showing the (a) SFDA and (b) ATA results for submissions to the PETS2009/PETS2010 workshops (blue bars) and for the technique introduced in this paper (red bars). These graphs show comparable performance for the general technique in this paper with state-of-the-art, object-specific detection and tracking strategies. Our results were computed using a covariance confidence interval threshold of 0.35.}
   \label{fig:sfda_and_ata_comparison}
 \end{figure}
 
