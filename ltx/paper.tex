@@ -747,7 +747,7 @@ We define the state of the sampler to consist of the assignment variables for al
 \text{State} = \{ \bold{c}_{1:T}, \bold{d}_{1:T}, \Theta_{1:T}, \bold{m}_{1:T} \}
 \end{equation}
 where $\bold{c}_{t} = c_{1:N_{t},t}$, $\bold{d}_{t} = d_{1:N_{t},t}, \Theta_{t} = \theta_{1:K_{t}, t}$, and $m_{1:K_{t},t}$.
-The sampler performs an MCMC method known as Gibbs sampling; it operates by iteratively sampling each member of the state given all other members. In particular, at each time $t$ it moves sequentially through each of the $N_{t}$ observations, sampling the assignment $c_{i,t}$ and the deletion variable $d_{i,t}$. After the final observation at a given time is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. The following sections detail how each sample in the model is generated.
+The sampler performs an MCMC method known as Gibbs sampling; it operates by iteratively sampling each member of the state given all other members. In particular, at each time $t$ it moves sequentially through each of the $N_{t}$ observations, sampling the assignment $c_{i,t}$ and the deletion variable $d_{i,t}$. After the final observation at a given time is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference. The following sections detail how each sample in the model is drawn.
 
 
 
@@ -759,7 +759,7 @@ The sampler performs an MCMC method known as Gibbs sampling; it operates by iter
 \subsubsection{Sampling Assignment Variables $c_{i,t}$}
 \label{sec:sample_assignments}
 
-A value proportional to the posterior probability can be computed for each possible value that $c_{i,t}$ may take on; these values allow us to construct a discrete probability distribution that may be drawn from to get a sample from the posterior distribution over assignments. The possible values that the assignment may take on are $c_{i,t} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between time $t$ and the assignment's associated deletion time $d_{i,t}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i,t}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
+A value proportional to the posterior probability can be computed for each possible value that $c_{i,t}$ may take on; these values allow us to construct a discrete probability distribution from which we can draw samples from the posterior distribution over assignments. The possible values that the assignment may take on are $c_{i,t} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between time $t$ and the assignment's associated deletion time $d_{i,t}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i,t}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
 \begin{equation}
 \begin{split}
 p(c_{i,t} = k | \text{State}) & \propto
@@ -788,7 +788,7 @@ where the distribution CRP is given by \eqref{crp_rep}, and the sizes of the clu
 where ``Student'' denotes the Student's t distribution, where we follow the three-value parameterization (location parameter, scale parameter, and degrees of freedom) given in \cite{gelman2004bayesian}.
 
 %%%%%
-% Need to include ratio of Dirichlet also in the above posterior predictive distro of a single observation
+% Need to include ratio of Dirichlet also in the above posterior predictive distro of a single observation, and discuss how to compute any parameters in here that aren't yet specified
 %%%%%
 
 
@@ -850,10 +850,11 @@ This distribution does not allow for samples to be easily drawn and thus require
 \label{alg:MH}
 \caption{Metropolis Hastings Algorithm}
 \begin{algorithmic}[1]
-\STATE $f(x)$ is the stationary PDF from which samples are desired \hfill $\triangleright$ eq. \eqref{stationary_pdf}
+\STATE $f(x)$ is the stationary PDF from which $N$ samples are desired \hfill $\triangleright$ eq. \eqref{stationary_pdf}
 \STATE $q( \cdot | x_{i-1})$ is the proposal pdf \hfill $\triangleright$ eq. \eqref{proposal_distro}
+\STATE B is the number of burn in samples
 \STATE $x_{0} \leftarrow$ initialize
-\STATE B $\leftarrow$ \# of burn in samples
+%\STATE B $\leftarrow$ \# of burn in samples
 \FOR{$i = 1 : \text{B} + N$}
 \STATE Sample $x^{*} \sim q( \cdot | x_{i-1})$
 \STATE Sample $\alpha \sim \text{Uniform}(0,1)$
@@ -871,7 +872,7 @@ This distribution does not allow for samples to be easily drawn and thus require
 \end{algorithm}
 
 
-The M-H algorithm is used to sample auxiliary variables for each alive cluster. In short, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
+The M-H algorithm is used to sample auxiliary variables for each alive (positive size) cluster. In short, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
 \begin{equation}
 \label{proposal_distro}
 z_{k,t,m}^{*}  \sim  P(z_{k,t,m} | \theta_{k,t}) = \mathcal{N}(z_{k,t,m}^{s} | \boldsymbol{\mu}_{k,t}, \Sigma_{k,t}) \mathcal{M}n(z_{k,t,m}^{c} | \bold{p}_{k,t})
@@ -881,7 +882,7 @@ compute the standard M-H acceptance ratio, which in this case (due to the propos
 \label{accept_ratio}
 r_{accept} = \frac{P(\theta_{k,t-1} | z_{k,t,m}^{*})}{P(\theta_{k,t-1} | z_{k,t,m})}
 \end{equation}
-and keep this sample with probability $\text{min}(1, r_{accept})$.
+and choose these auxiliary variables as the next sample in the constructed sequence if $\alpha < \text{min}(1, r_{accept})$, where $\alpha$ is a sample from a $\text{Uniform}(0,1)$ distribution.
 
 
 
@@ -891,7 +892,7 @@ and keep this sample with probability $\text{min}(1, r_{accept})$.
 % ---------------------------------
 
 \subsubsection{Sampling Deletion Variables $d_{i}$}
-Computing the posterior distribution (or a value proportional to this distribution) for each possible value that a given deletion variable may take on (in a manner similar to how samples from the posterior distribution of the assignment variables $c_{i}$ are gained in Section~\ref{sec:sample_assignments}) may be computationally expensive due to the large number of potential deletion times. To remedy this, the M-H algorithm may again be used to sample from the posterior, where the prior distribution for the deletion times can be used to propose new samples $d_{i}^{*}$. As the `lifetime' of each assignment can be shown to be geometrically distributed, we can propose a new deletion time sample with
+Computing the posterior distribution (or a value proportional to this distribution) for each possible value that a given deletion variable may take on, may be accomplished in a manner similar to how samples from the posterior distribution of the assignment variables $c_{i}$ are gained in Section~\ref{sec:sample_assignments}; however, this may be computationally expensive due to the large number of potential deletion times. To remedy this, the M-H algorithm may again be used to sample from the posterior, where the prior distribution for the deletion times can be used to propose new samples $d_{i}^{*}$. As the ``lifetime'' of each assignment can be shown to be geometrically distributed, we can propose a new deletion time sample with
 \begin{align}
 \begin{split}
 l_{i}  &\sim  \text{Geo}(\rho)  \\
@@ -908,23 +909,13 @@ and accept or reject this sample using the standard M-H acceptance ratio.
 
 
 
-% mcmc: initializing the sampler
-% ------------------------------
-
-\subsubsection{Initializing the Sampler}
-Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference.
-
-
-
-
-
 % SMC inference section
 % ---------------------
 
 \subsection{SMC Inference}
 \label{sec:SMC}
 
-This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of a sample from the posterior distribution over the assignment for each observation, $c_{1,t}, \ldots, c_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a subset of the particles are resampled and kept via a resampling process. Within each time step, Gibbs sampling is used to generate the samples associated with each particle.
+This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method to carry out unsupervised detection and tracking. The SMC inference algorithm is given in Algorithm~\ref{alg:SMC}. In this algorithm, at each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of a sample from the posterior distribution over the assignment for each observation, $c_{1,t}, \ldots, c_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a new set of particles are sampled from the set of weighted particles via a resampling process. Within each time step, Gibbs sampling is used to generate the samples associated with each particle.
 
 The sequence of target distributions for the SMC algorithm may be written as
 \begin{equation}
@@ -943,7 +934,7 @@ P(\theta_{k,t} | \theta_{k,t-1}) \hspace{2mm} & \text{if} \hspace{2mm} k \leq K_
 & \times \prod_{k=1}^{K} \text{DEL}(m_{k,t} | m_{k,t-1}, c_{1:N_{t-1}, t-1}, \rho)
 \end{split}
 \end{equation}
-where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and $\bold{m}_{t} = m_{1,t}, \ldots, m_{K_{t}, t}$ A few distributions referenced in the SMC algorithm are described in detail in the following sections.
+where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and $\bold{m}_{t} = m_{1,t}, \ldots, m_{K_{t}, t}$ The distributions used in the SMC algorithm are described in detail in the following sections.
 
 % \begin{algorithm}
 % \caption{Sequential Monte Carlo Inference for the GPUDDPM}
@@ -1032,7 +1023,7 @@ where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}
 \FOR {l = 1 : L}
 \STATE $w_{t}^{(l)} \leftarrow \frac{\tilde{w}_{t}^{(l)}}{\sum_{l=1}^{L} \tilde{w}_{t}^{(l)} }$   \hfill $\triangleright$ normalize weights
 \ENDFOR
-\STATE Resample particles $1, \ldots, L$ and weights $w^{(1)}, \ldots, w^{(L)}$   \hfill $\triangleright$ Section~\ref{sec:resample}
+\STATE Resample particles $1, \ldots, L$ and weights $w_{t}^{(1)}, \ldots, w_{t}^{(L)}$   \hfill $\triangleright$ Section~\ref{sec:resample}
 \ENDFOR
 \end{algorithmic}
 \end{algorithm}
@@ -1056,7 +1047,7 @@ P(\bold{x}_{i,t} | \theta_{c_{i,t},t}) \hspace{2mm} \text{if} \hspace{2mm} k \le
 \end{cases}
 \end{split}
 \end{equation}
-The integral can $\int P(\bold{x}_{i,t} | \theta) \mathbb{G}_{0}(\theta)d\theta$ can be determined analytically, and is given in \eqref{marginal_obs_prob}.
+where CRP is defined in \eqref{CRP}, and the integral $\int P(\bold{x}_{i,t} | \theta) \mathbb{G}_{0}(\theta)d\theta$ can be determined analytically, and is given in \eqref{marginal_obs_prob}.
 
 
 
@@ -1070,7 +1061,7 @@ The following is a distribution over cluster parameters $\theta_{k,t}$ given a s
 \label{smc_q1_eqn}
 q_{1}(\theta_{k,t} | \bold{x}_{1:N,t}) = P(\theta_{k,t} | \bold{x}_{1:N,t})
 \end{equation}
-where $P(\theta_{k,t} | \bold{x}_{1:N,t})$ is given by the bayesian updates found in \eqref{bayesian_update_1}, \eqref{bayesian_update_2}, \eqref{bayesian_update_3}, and \eqref{bayesian_update_4}, where the $\bold{x}_{1:N,t}$ are taken to be the observations.
+where samples can be drawn from $P(\theta_{k,t} | \bold{x}_{1:N,t})$ using the bayesian updates found in \eqref{bayesian_update_1}, \eqref{bayesian_update_2}, \eqref{bayesian_update_3}, and \eqref{bayesian_update_4}, where the $\bold{x}_{1:N,t}$ are taken to be the observations.
 
 
 
@@ -1084,7 +1075,7 @@ The following is a distribution over cluster parameters $\theta_{k,t}$ given a s
 \label{smc_q2_eqn}
 q_{2}(\theta_{k,t} | \theta_{k,t-1},\bold{x}_{1:N,t}) = P(\theta_{k,t} | \theta_{k,t-1} \bold{x}_{1:N,t})
 \end{equation}
-where $P(\theta_{k,t} | \theta_{k,t-1} \bold{x}_{1:N,t})$ is given by the bayesian updates found in \eqref{bayesian_update_1}, \eqref{bayesian_update_2}, \eqref{bayesian_update_3}, and \eqref{bayesian_update_4}, where both the $\bold{x}_{1:N,t}$ and auxiliary variables $z_{k,t,1:M}$ are taken to be the observations.
+where samples can be drawn from $P(\theta_{k,t} | \theta_{k,t-1} \bold{x}_{1:N,t})$ using the bayesian updates found in \eqref{bayesian_update_1}, \eqref{bayesian_update_2}, \eqref{bayesian_update_3}, and \eqref{bayesian_update_4}, where both the $\bold{x}_{1:N,t}$ and auxiliary variables $z_{k,t,1:M}$ are taken to be the observations.
 
 
 
@@ -1094,7 +1085,7 @@ In Algorithm~\ref{alg:SMC}, the weight $\tilde{w}_{t}^{(l)}$ of each particle $l
 \begin{equation}
 \tilde{w}_{t}^{(l)} \leftarrow w_{t-1}^{(l)} \times \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})}	{P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) } \times r
 \end{equation}
-where $r$ denotes the computed ratio for the particle, and we define
+where $r$ denotes the computed ratio for the particle (defined in Algorithm~\ref{alg:SMC}), and we define
 \begin{equation}
 \label{smc_weight_eqn}
 \begin{split}
@@ -1104,6 +1095,10 @@ where $r$ denotes the computed ratio for the particle, and we define
 \end{split}
 \end{equation}
 
+%%%%%
+% need to complete this equation
+%%%%%
+
 
 
 
@@ -1111,18 +1106,45 @@ where $r$ denotes the computed ratio for the particle, and we define
 \subsection{Resampling Particles and Particle Weights}
 \label{sec:resample}
 
-At each time step $t \in \{ 1, \ldots, T \}$, after all of the $L$ particles have been sampled and their associated weights computed, a resampling step is carried out. In this step, $L$ new particles are sampled from currnt set of $L$ particles.
+At each time step $t \in \{ 1, \ldots, T \}$, after all of the $L$ particles have been sampled and their associated weights computed, a resampling step is carried out. In this step, $L$ new particles are sampled from current set of $L$ particles. We will describe a specific, simple method known as Multinomial Resampling. In this method of resampling, we draw
+\begin{equation}
+\Upsilon \sim \mathcal{M}n((w_{t}^{(1)}, \ldots, w_{t}^{(L)}))
+\end{equation}
+where $\mathcal{M}n$ denotes the multinomial distribution, and $\Upsilon$ represents a vector of counts showing the multiplicity of each of the old particles in the new particle set (i.e. $\Upsilon_{i}$ denotes how many times particle $i$ is duplicated in the new particle set). More sophisticated resampling strategies are described for the SMC algorithm in \cite{gasthaus_thesis} and \cite{douc2005comparison}.
 
+%%%%%
+% need to include particle resampling strategies
+%%%%%
 
 
 
 
 \subsection{Modeling Background Noise}
 
-Noisy extraction procedures may result in spurrious data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ to be a two component mixture, where one component is the base distribution and the other is a multivariate normal distribution with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$.
+% Noisy extraction procedures may result in spurrious data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our base distribution $\mathbb{G}_{0}$ to be a two component mixture, where one component is the base distribution and the other is a multivariate normal distribution with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$.
+Noisy extraction procedures may result in spurrious data points that do not correspond to any foreground object. We would like to incorporate these points into our model. To do this, we modify our model to be a two component mixture model, where one component is the previous model (the GPUDDPM) and the other is a multivariate normal distribution with with a fixed `flat' covarance $\sigma = [100, 0; 0, 100]$ multiplied with an `even' multinomial distribution with a fixed parameter $\bold{p} = (1/K, \ldots, 1/K)$. This normal-multinomial component is left intentionally broad, and only the mean parameter of the normal distribution is inferred. We can write this generative model as
+\begin{align}
+\label{background_model}
+\begin{split}
+\gamma_{i,t} | p_{1}, p_{2} &\sim \text{Discrete}(p_{1}, p_{2})\\
+m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho  &\sim \text{DEL}(m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) \\
+\theta_{k, t} | \theta_{k, t-1}   &\sim
+\begin{cases}
+	P(\theta_{k, t} | \theta_{k, t-1}) \hspace{2mm} \text{if} \hspace{2mm} k \in \{ 1, \ldots, K_{t} \} \\
+	\mathbb{G}_{0}   \hspace{2mm} \text{if} \hspace{2mm} k = K_{t+1}
+\end{cases} \\
+c_{i,t} | m_{1:K_{t},t}, \hspace{1mm} \alpha  &\sim  \text{CRP} (m_{1:K_{t},t}, \hspace{1mm} \alpha) \\
+\bold{x}_{i,t} | c_{i,t}, \theta_{1:K_{t}, t}, \gamma_{i,t}, \phi &\sim
+\begin{cases}
+	F(\theta_{c_{i,t}, t}) \hspace{2mm} \text{if} \hspace{2mm} \gamma_{i,t} = 1 \\
+	\phi \hspace{2mm} \text{if} \hspace{2mm} \gamma_{i,t} = 2
+\end{cases} \\
+\end{split}
+\end{align}
+where $\phi$ represents the normal-multinomial component distribution defined above.
 
 %%%%%
-% define more rigorously, and then say why we don't include in experiments?
+% define more rigorously, and then say why we don't include in experiments?--- or perhaps include for an example in experiments
 %%%%%
 
 
@@ -1243,7 +1265,7 @@ Parameters were set to the same values for inference on both videos, using the m
   \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth1_cross.pdf}} \hspace{0.5mm}
   \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth1_bounce.pdf}} \hspace{0.5mm}
   \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth4.pdf}}
-  \caption{Each plot shows a sample from the posterior distribution of the state for one of the videos in synthetic experiment one, where the time axis ascends vertically, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. In both cases, the two objects are successfully tracked through occlusion, though both objects reverse their directions in the second video.}
+  \caption{Each plot shows a sample from the posterior distribution of the model for synthetic experiments one (a and b) and two (c), where the vertical axis represents frame number, the horizontal axes represent spatial position, objects are denoted by marker colors and marker types, and the mean and standard deviation are shown. In all cases, the objects are successfully tracked through occlusion, whether they travel in a straight line (a), reverse direction (b), or do a combination of both (c).}
   \label{fig:synth_one_plot}
 \end{figure}
 
@@ -1398,7 +1420,7 @@ In \cite{ellis_2010}, performance metrics were computed for a number of studies 
   \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2009full_comp_sfda.pdf}}
   \hspace{1mm}
   \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2009full_comp_ata.pdf}}
-  \caption{Performance metric comparison showing the (a) SFDA and (b) ATA results for submissions to the PETS2009/PETS2010 workshops (blue bars) and for the technique introduced in this paper (red bars). These graphs show comparable performance for the general technique in this paper with state-of-the-art, object-specific detection and tracking strategies. Our results were computed using a covariance confidence interval threshold of 0.35.}
+  \caption{Performance metric comparison showing the (a) SFDA and (b) ATA results for submissions to the PETS2009/PETS2010 workshops (blue bars) and for the technique introduced in this paper (red bars). These graphs show that the general technique in this paper yields comparable performance with state-of-the-art, object-specific detection and tracking strategies. Our results were computed using a covariance confidence interval threshold of 0.35.}
   \label{fig:sfda_and_ata_comparison}
 \end{figure}
 
