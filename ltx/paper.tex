@@ -184,7 +184,7 @@ Determining the regions of each video frame that contain objects allows us to ge
 
 Examples of additional features that could be extracted from object-regions in video frames include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, texture representations, transform calculations (such as results of hough or fourier transforms), and quantiative region descriptions derived from image segmentation procedures; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, are applicable to a wide variety of object types, and can be represented by distributions that allow for tractable inference (discussed further in Section~\ref{sec:inference}).
 
-We will use the phrase ``baseline'' three-dimensional extraction data to refer to the features $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ of pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when the data are plotted in three dimensions (where we let the frame number $t$, our discrete representation of time, ascend the vertical axis and the spatial positions occupy the horizontal axes). 
+We will use the phrase ``baseline'' three-dimensional extraction data to refer to the features $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$ of pixels present in regions containing objects. These data are distributed roughly as worm-like shapes that follow the paths of individual objects as they move, when the data are plotted in three dimensions (where we represent the frame number $t$, our discrete representation of time, on the vertical axis and spatial position on the horizontal axes). Modeling this data with a time dependent Dirichlet process mixture model (Section~\ref{sec:gpuddpm}) allows us to perform inference (Section~\ref{sec:inference}), which carries out clustering of the data. By choosing this type of model, we aim to provide a clustering result that isolates each worm-like data cloud and infers a sequence of distributions for each, which we use to gain localization and tracking results for each object (Section~\ref{sec:inference_to_results}).
 
 
 
@@ -206,7 +206,7 @@ We will use the phrase ``baseline'' three-dimensional extraction data to refer t
 %   \label{fig:baselinedata}
 % \end{figure}
 
-Modeling this data with a time dependent Dirichlet process mixture model (Section~\ref{sec:gpuddpm}) allows us to perform inference (Section~\ref{sec:inference}), which carries out clustering of the data. By choosing this type of model, we aim to provide a clustering result that isolates each worm-like data cloud and consequently allows each object to be localized and tracked.
+
 
 
 
@@ -761,6 +761,7 @@ The sampler performs an MCMC method known as Gibbs sampling; it operates by iter
 
 A value proportional to the posterior probability can be computed for each possible value that $c_{i,t}$ may take on; these values allow us to construct a discrete probability distribution from which we can draw samples from the posterior distribution over assignments. The possible values that the assignment may take on are $c_{i,t} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between time $t$ and the assignment's associated deletion time $d_{i,t}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i,t}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
 \begin{equation}
+\label{mcmc_assig_vars}
 \begin{split}
 p(c_{i,t} = k | \text{State}) & \propto
 \prod_{i'=i}^{N_{t}}  \text{CRP}(c_{i',t} | \bold{m}_{t-1}, \alpha) \\
@@ -1089,11 +1090,16 @@ where $r$ denotes the computed ratio for the particle (defined in Algorithm~\ref
 \begin{equation}
 \label{smc_weight_eqn}
 \begin{split}
-& \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})}	{P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) }  = \\
+& \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})}	{P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) }  = 
+\frac{P(\bold{x}_{1:N_{t},t} | \theta_{1:K_{t}^{(l)}}) P(c_{1:N_{t}, t}^{(l)} | m_{1:K_{t},t}^{(l)}) )}{P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t})}
+\\
+%
 % & \frac{P \left( \bold{x}_{1, t} | \theta_{c_{1, t}^{(l)}, t}^{(l)} \right) \times \ldots \times P \left( \bold{x}_{N_{t}, t} | \theta_{c_{N_{t}, t}^{(l)}, t}^{(l)} \right) \times
 % P \left( c_{1, t}^{(l)} | m_{1:K_{t}^{(l)}, t}^{(l)} \right) \times \ldots \times P \left( c_{N_{t}, t}^{(l)} | m_{1:K_{t}^{(l)}, t}^{(l)} \right)}{b}
+%
 \end{split}
 \end{equation}
+where $P(\bold{x}_{1:N_{t},t} | \theta_{1:K_{t}^{(l)}})$ is defined by \eqref{likelihood}, $P(c_{1:N_{t}, t}^{(l)} | m_{1:K_{t},t}^{(l)}))$ is defined by \eqref{CRP}, and $P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t})$ is defined by \eqref{mcmc_assig_vars}.
 
 %%%%%
 % need to complete this equation
@@ -1432,7 +1438,7 @@ In \cite{ellis_2010}, performance metrics were computed for a number of studies 
 
 SMC inference on the PETS2009 video dataset was carried out for a range of two key parameter values, $\alpha$ and $\rho$. The performance metric measures, SFDA and ATA, were computed for each combination of these two parameters. This sensitivity investigation focused on these parameters due to their potential to have a large effect on object detection accuracies. The $\alpha$ values tested included $\{ 0.01, 0.1, 1, 10, 100 \}$, and the $\rho$ values tested included $\{ 0.7, 0.75, 0.8, 0.85, 0.9 \}$.
 
-The following shows the SFDA sensitivity analysis results. The largest value is in bold.
+The following shows the SFDA sensitivity analysis results. The largest two values are shown in bold.
 \begin{center}
 \begin{tabular}[!]{l l  l  l  l  l  l}
   & & & $\hspace{8mm}\rho$ & & & \\
@@ -1445,7 +1451,7 @@ $\alpha$ 	& $1$    & $0.4084$ & $0.4209$ & $0.4205$ & $0.4290$ & $0.4330$  \\
 \end{tabular}
 \end{center}
 
-The following shows the ATA sensitivity analysis results. The largest value is in bold.
+The following shows the ATA sensitivity analysis results. The largest two values are shown in bold.
 \begin{center}
 \begin{tabular}[!]{l l  l  l  l  l  l}
 		& & & $\hspace{8mm}\rho$ & & & \\
@@ -1457,6 +1463,8 @@ $\alpha$ & $1$  	& $0.2016$ & $0.2365$ & $0.2766$ & $0.2347$ & $0.2766$  \\
  		 &$100$ 	& $0.2468$ & $0.2645$ & $0.2725$ & $0.2670$ & $\bold{0.2843}$  \\
 \end{tabular}
 \end{center}
+
+Figure~\ref{fig:sens_surf} shows a surface plot of the sensitivity analysis results. From this figure, we can see that the SFDA and ATA achieve their maximal values at different $\alpha$ and $\rho$ parameters, though both achieve a reasonably optimal value at the intermediate parameter values $\alpha = 10$ and $\rho = 0.85$. We can also see that detection and tracking performance is fairly robust to minor variations in these parameter values.
 
 
 % By inspecting the figures, one can see that there is a point where the SFDA and ATA both achieve a maximal value.
@@ -1515,12 +1523,12 @@ $\alpha$ & $1$  	& $0.2016$ & $0.2365$ & $0.2766$ & $0.2347$ & $0.2766$  \\
 
 
 
-\section*{Discussion and Conclusion}
+\section*{Conclusion}
 \label{sec:discussion}
 
-We have presented a new technique for the unsupervised detection and tracking of arbitrary objects in videos. The primary intention of this technique is to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The GPUDDPM, a time-dependent Dirichlet process mixture, has been introduced, and we have shown how inference on this model allows for the desired clustering of extraction data. Furthermore, we have demonstrated a specific implementation of the model using spatial and color pixel data extracted via frame differencing and provided two algorithms for performing inference on the model to accomplish detection and tracking. Both algorithms were carried out on multiple synthetic and benchmark multi-object video datasets in order to demonstrate an ability to accomplish unsupervised detection and tracking of arbitrary objects in both manufactured and real world settings. We have described and computed standard performance metrics for our method's detection and tracking results, and found it to be comparable with other techniques that were designed for the specific object-types present in the videos in question. These results illustrate the ability of the technique described in this paper to, without modification, detect and track objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion
+We have presented a new technique for the unsupervised detection and tracking of arbitrary objects in videos. The primary intention of this technique is to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The GPUDDPM, a time-dependent Dirichlet process mixture, has been introduced, and we have shown how inference on this model allows for the desired clustering of extraction data. Furthermore, we have demonstrated a specific implementation of the model using spatial and color pixel data extracted via frame differencing and provided two algorithms for performing Bayesian inference on the model to accomplish detection and tracking. Both algorithms were carried out on multiple synthetic and benchmark multi-object video datasets in order to demonstrate an ability to accomplish unsupervised detection and tracking of arbitrary objects in both manufactured and real world settings. We have described and computed standard performance metrics for our technique's detection and tracking results, and found it to be comparable with state-of-the-art object-specific detection and tracking methods designed for people tracking in the PETS2009/2010 video dataset. Results from the synthetic and benchmark video datasets illustrate the ability of the technique described in this paper to, without modification, perform completely unsupervised detection and tracking of objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion
 
-More to include: more discussion of parameter choices, thoughts about deletion params vs. dataset size (and the tradeoff between tracking through occlusion vs clusters rapidly gaining size), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects. discuss how we detect movement, which isn’t exactly same as authors in the perf. metric paper (ie our tracking is designed to stop if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
+% More to include: more discussion of parameter choices, thoughts about deletion params vs. dataset size (and the tradeoff between tracking through occlusion vs clusters rapidly gaining size), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects. discuss how we detect movement, which isn’t exactly same as authors in the perf. metric paper (ie our tracking is designed to stop if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior for remaining stationary
 
 
 
