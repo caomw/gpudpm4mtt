@@ -1,0 +1,1129 @@
+% header stuff
+% ------------
+
+\documentclass[twocolumn, final]{svjour3}
+\usepackage[square,numbers]{natbib}
+\usepackage{amsmath, epsfig}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{easybmat}
+\usepackage{footmisc}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{subfig}
+\renewcommand\algorithmiccomment[1]{// \textit{#1}}
+\newcommand{\ignore}[1]{}
+\newcommand{\comment}[1]{}
+\newcommand{\frank}[1]{\textcolor{red}{\textsf{\emph{\textbf{\textcolor{blue}{#1}}}}}}
+\newcommand{\willie}[1]{\textcolor{green}{\textsf{\emph{\textbf{\textcolor{green}{#1}}}}}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\begin{document}
+
+
+% title and author related
+% ------------------------
+
+\title{Unsupervised Detection and Tracking of Arbitrary Objects with Dependent Dirichlet Process Mixtures}
+\titlerunning{Unsupervised Detection and Tracking of Arbitrary Objects with Dependent Dirichlet Process Mixtures}
+\author{Willie Neiswanger$^{*}$ and Frank Wood$^{\dagger}$}
+\authorrunning{Willie Neiswanger and Frank Wood}
+\institute{ $^{*}$Columbia University, Department of Applied Math and Applied Physics. Tel.: 503-464-6152. \email{wdn2101@columbia.edu} \and $^{\dagger}$Columbia University, Department of Statistics. Tel.: 212-851-2150. \email{fwood@stat.columbia.edu}}
+\date{}  % add submit date when submitted
+\maketitle
+
+
+% Abstract
+% --------
+
+\begin{abstract}
+This paper proposes a technique for the unsupervised detection and tracking of arbitrary objects in videos. It is intended to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The technique uses a Dependent Dirichlet Process Mixture (DDPM) known as the Generalized Polya Urn (GPUDDPM) to model image pixel data that can be extracted in a general manner from the regions in a video that represent objects. This paper describes a specific implementation of the model using spatial and color pixel data extracted via frame differencing and gives two algorithms for performing inference on the model to accomplish detection and tracking. This technique is demonstrated on multiple synthetic and benchmark video datasets that illustrate its ability to, without modification, detect and track objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion.
+% \keywords{Object Detection \and Tracking \and Bayesian Nonparametrics \and Multiple Target Tracking}
+\end{abstract}
+
+
+
+% introduction
+% ------------
+
+\section{Introduction}
+\label{sec:introduction}
+
+We define the task of automated detection and tracking of arbitrary objects in videos to be three things: extraction, localization, and tracking. Extraction is the task of determining the spatiotemporal regions of a video that constitute objects, localization is the task of finding the positions and/or shapes of distinct objects, and tracking is the task of maintaining the identities of the detected objects over time. An ability to carry out these tasks in an automated manner is useful for many fields that make use of video data, including robotics, video surveillance, time-lapse microscopy, and video summarization. Algorithms able to be applied to a variety of objects and video types are particularly desirable. This paper introduces a new framework involving the use of dependent Dirichlet process mixture models. This framework provides a foundation for a class of unsupervised algorithms that can detect and track arbitrary objects in a wide range of videos.
+
+Research on methods for general detection and tracking of objects tends to focus on one of either extraction, localization, or tracking. Integrating all three tasks in a system for multiple arbitrary objects and diverse video types is not often a primary focus. Accomplishing the three tasks in a cohesive manner has been pursued more recently and has produced algorithms that can, in a fully automated way, accomplish unsupervised detection, localization, and tracking. An example of general detection and tracking is called ``blob tracking'', which typically refers to methods that perform extraction and localization of objects in each frame independently. Tracking involves finding blobs with similar locations and appearances over time. The main blob tracking challenges are the difficulty of segmenting neighboring or occluding objects in a given frame \cite{zhao2004tracking} and preventing multiple tracked blobs from merging into a single object \cite{vermaak_2003}. These difficulties stem from performing detection via segmentation on individual frames.
+
+This paper presents the use of a Bayesian nonparametric mixture model for general, unsupervised multiple object detection and tracking. This method provides both a widely applicable way to detect arbitrary objects in videos---particularly in cases where frame-by-frame segmentation is difficult or video quality is low and extraction is noisy---and a general framework for identifying and isolating objects during tracking. Specifically, this work describes how a dependent Dirichlet process mixture model can accomplish these goals. The DDP is first reviewed in the abstract. This model can be used with arbitrary extraction procedures and object appearance representations that may be desired in future studies. We then present our specific model for data obtained via a basic extraction procedure. We describe inference algorithms for the DDP, and specifically our specific model, that allow object localization and tracking to be carried out. We demonstrate our implementation on multiple synthetic and benchmark datasets. Standard performance metrics for each supports our hypothesis that general extraction combined withe sophisticated inference can perform detection and tracking at a level comperable to state-of-the-art, object specific algorithms.
+
+
+
+% Prior Work
+% ----------
+
+\section{Background}
+\label{sec:priorwork}
+
+A variety of methods in the fields of image processing, signal processing, and computer vision have been developed to solve aspects of the problem of unsupervised detection and tracking of arbitrary objects. These methods might be placed into a few broad categories: those that aim to distinguish the foreground regions of images from the background \cite{hong2007real,chien2002efficient, zhang2007moving, kim2002fast}, segment images into distinct regions to perform localization \cite{jain1997object, fei2005bayesian, sivic2005discovering}, track an object over a sequence of images (after its position has been specified in an initial image) \cite{raja_1998, mckenna_1999, jepson_2003, comaniciu_2003, perez_2002}, track multiple objects over a sequence of images (especially when the objects interact or occlude one another) \cite{senior2006appearance, cucchiara2004probabilistic, zhou2003background, han_2004, mckenna2000tracking, dockstader2001multiple}, segment a sequence of images into distinct spatiotemporal regions \cite{brox2003unsupervised, sista2000unsupervised, wang1998unsupervised}, and combine the previous methods in some way to create systems capable of both detecting and tracking specified objects, or of discerning which regions of a video constitute distinct, arbitrary objects and tracking these \cite{brostow2006unsupervised, brox2010object, fragkiadaki2011detection, pece_2002}.
+
+Extraction methods aim to discern the foreground regions of a video from the background. Frame differencing and background subtraction are two such methods, and involve comparing pixel values, or groups of pixel values, between two images, to detect a change surpassing some threshold. The goal of these techniques is to find locations in a scene that display motion, and to deem these moving areas the foreground of a scene.  Often, background subtraction refers to comparing an image containing targets with an image of the background without targets or with some model of the background that is learned as the video progresses (in these cases, objects that do not move throughout a scene will be treated as the background), while frame or image differencing refers to comparing pairs of consecutive images in a video. Frame differencing has been used as the sole extraction method for object localization or tracking schemes with success \citep{pece_2002, beleznai_2006, chu_2007}, and also as a secondary data extraction method to help improve the accuracy of object tracking schemes \citep{perez_2002}. Another technique for discerning moving regions in an image involves optical flow \citep{horn_1981, bobick_2001}. In \cite{black_2000}, a motion detection and object tracking method is developed based on the relative motion of moving objects' boundaries, which are found through analysis of optical flow.
+
+A great deal of research has focused on developing algorithms to track multiple objects simultaneously. There has been a particular emphasis on developing ways to deal with problems such as object occlusions (where one object blocks another from the view of a video camera) \cite{senior2006appearance, cucchiara2004probabilistic, zhou2003background}, complex object interactions \cite{khan_2004, mckenna2000tracking, dockstader2001multiple}, objects with similar appearances \cite{maccormick1999probabilistic, jepson_2003}, variable (and potentially high) numbers of objects \cite{reilly2010detection}, and objects that enter and exit a field of view at different times \cite{stauffer2003estimating, nedrich2010learning}. Multiple single-object trackers running simultaneously have been shown to be ineffective, as distinct single-object trackers will tend to coalesce and track the same object. To remedy this problem, methods such as \cite{maccormick1999probabilistic} have developed probabilistic principles for maintaining isolation of object trackers. An approach to this problem involving the use of a nonparametric mixture model has also found success in maintaining isolation of distinct objects \cite{vermaak_2003}.
+
+Over the past decade, there have been attempts to provide general algorithms for the fully unsupervised detection and tracking of arbitrary objects in videos. Blob tracking, a basic method attempting to carry out this goal, has been used for many years, and has found success in arenas where objects are easily discerned from the background of a video and where localization and segmentation of distinct objects is possible \cite{francois2004real, isard_2001}. Methods involving blob tracking, however, run into problems when faced with videos where detection is difficult, object appearance or orientation varies heavily, and there exists object occlusion \cite{song2005model}. To aid the accuracy of these methods, techniques have been developed for performing extraction and segmentation in a joint manner, incorporating statistical methods for maintaining hypotheses of different numbers of detected objects, and introducing some of the multi-object tracking methods described previously to track distinct blobs after they have been segmented \cite{collins2003mean, isard_2001}. Another family of methods related to the task of unsupervised detection and tracking of video objects goes under the heading of video segmentation algorithms---these methods extend single-frame image segmentation to maintain coherence of image segments over time, and have had some success when used for the explicit purpose of detecting and tracking foreground objects of videos \cite{brox2003unsupervised, sista2000unsupervised, wang1998unsupervised}. Other attempts to perform unsupervised detection and tracking include methods for clustering short sequences of positions that can be gained by detecting the motion of objects \cite{brostow2006unsupervised, brox2010object}, which aim to return full-length distinct object tracks, and a graph based method that carries out a similar task using spectral clustering \cite{fragkiadaki2011detection}. Another approach based on a Gaussian mixture model has also been used to cluster data gained from moving objects \cite{pece_2002}; this method also develops heuristics for the initialization and elimination of new tracks. 
+
+Nearly all methods capable of high accuracy detection and tracking of objects in videos are those tailored for specific object types. These methods rely on ad-hoc detection criteria that exploit previous knowledge about the appearance or behavior of objects in a video. The method described in this paper is designed to track arbitrary objects without using any explicit detection criteria, and serve as a general strategy that can be used, without modification, to perform accurate detection and tracking of diverse objects in a wide range of videos. The method we introduce falls into the category of clustering-based arbitrary object detection and tracking methods. Differing from previous work, we use a type of time dependent Bayesian nonparametric mixture model, and show how it can be applied to a variety of extraction data to perform detection and tracking. This method begins by performing a simple data extraction procedure (that is consistent for all videos), which can be carried out broadly but yields noisy data; we model this noisy extracted data with a sophisticated type of Bayesian mixture model. Inference can then be performed on this model to gain detection and tracking results.
+
+This paper describes the data extraction procedures (Section~\ref{sec:dataextraction}), the general form of the model (Section~\ref{sec:modeldefinition}), the specific distributions used in our implementation of the model (Section~\ref{sec:modelspecification}), inference procedures used to get tracking results (Section~\ref{sec:inference}), and experimental results (Section~\ref{sec:experiments}).
+
+
+
+% Overview
+% --------
+
+% \section{Overview of Method}
+% \label{sec:overviewofmethod}
+
+
+
+% Frame Diff and Longimg figure
+% -----------------------------
+
+\begin{figure*}
+  \centering
+  \subfloat[]{\label{fig:ants_img}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_723.pdf}} 
+  \subfloat[]{\label{fig:ants_img2}\includegraphics[width=0.335\textwidth]{../img/usbh_frame_724.pdf}}
+  \subfloat[]{\label{fig:ants_img_framediff}\includegraphics[width=0.323\textwidth]{../img/usbh_framediff.png}}\\
+  \subfloat[]{\label{fig:traffic2_img}\includegraphics[width=0.328\textwidth]{../img/traffic2_frame1.png}} 
+  \subfloat[]{\label{fig:traffic2_img2}\includegraphics[width=0.328\textwidth]{../img/traffic2_frame2.png}}
+  \subfloat[]{\label{fig:traffic2_img_framediff}\includegraphics[width=0.3273\textwidth]{../img/traffic2_framediff.png}}\\
+  \subfloat[]{\label{fig:pets2009_img}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame1.png}} 
+  \subfloat[]{\label{fig:pets2009_img2}\includegraphics[width=0.333\textwidth]{../img/pets2009_frame2.png}}
+  \subfloat[]{\label{fig:pets2009_img_framediff}\includegraphics[width=0.333\textwidth]{../img/pets2009_framediff.png}}\\
+  %\subfloat[]{\label{fig:longimg}\includegraphics[width=1.05\textwidth]{../img/longimg_6.pdf}} \\
+  \subfloat[]{\label{fig:longimg_all}\includegraphics[width=1\textwidth]{../img/longimg_7_detail_4.pdf}} 
+  %../img/longimg_7_detail.pdf}} 
+  \caption{Pairs of consecutive frames and the results produced by taking the pixel-wise difference between these frames (a - f). The final image shows the result of frame differencing over a sequence of images (from the PETS2009 dataset), where color denotes frame number.}
+  \label{fig:img_and_framediff}
+\end{figure*}
+
+
+
+% Data Extraction
+% ---------------
+
+\section{Data Extraction}
+\label{sec:dataextraction}
+
+A basic set of observations that can be extracted from video are three-dimensional points $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$, where $x_{1}$ and $x_{2}$ are the two spatial locations of a pixel. Extraction procedures, such as those discussed in Section~\ref{sec:introduction}, are used to isolate pixels lying in the regions of a video that represent objects. For implementation in experiments (Section~\ref{sec:experiments}), we desire an extraction procedure that is as unsophisticated as possible, both to gauge the robustness of this method on potentially noisy extraction data and to ensure that the procedure is applicable to a wide range of videos. Accordingly, we carry out a method called ``frame differencing'' for all experiments, which locates regions within video frames that contain motion by recording the positions of pixels exhibiting large enough differences in intensity or value between succesive frames. Frame differencing is unsophisticated, computationally inexpensive, able to be applied to a wide range of static, single-camera videos (note that videos used in all experiments were stationary; moving-camera videos require extraction methods useful for non-stationary video, such as \willie{cite cite cite}). Examples of pixel location data extracted via frame differencing are shown in Fig.~\ref{fig:img_and_framediff}(a-j).
+
+Incorporating color information into our model allows us to infer object color, better maintain the identity of adjacent objects, and track objects through occlusion with greater accuracy. We therefore capture the color of each extracted pixel. Specifically, for each pixel $\bold{x} = ( x_{1}, x_{2}, t )$ recorded during frame differencing, we specify a square, $L$ pixels in length, centered on $(x_{1}, x_{2})$, that contains a set of pixels surrounding $\bold{x}$ in frame $t$. We choose a scalar color value that is able to be computed for each pixel; this value could, for example, be some function of the red-green-blue (r-g-b) or hue-saturation-value (h-s-v) characteristic of a pixel. The color value of each of the selected pixels surrounding $\bold{x}$ is recorded. Afterwards, the set of possible color values (ie the range of color values to which a pixel may be assigned) is partitioned into $V$ bins, and the number of pixels with a color value lying in each of the bins yields a $V$ dimensional vector of ``color counts''. This vector represents a discrete distribution over colors in the vicinity of a pixel. We will refer to this extraction technique as ``color counting''.
+
+The frame differencing and color counting extraction yields a set of data $\bold{X} \subset \mathbb{R}^{2} \times \mathbb{Z}_{+}^{V} \times \{1, \ldots, T \}$, where each element $\bold{x} \in \bold{X}$ can be written
+\begin{equation}
+\bold{x} = ( \bold{x}^{s}, \bold{x}^{c}, t ) = ( x^{s_{1}}, x^{s_{2}}, x^{c_{1}}, \ldots, x^{c_{V}}, t )
+\end{equation}
+where $\bold{x}^{s} \in \mathbb{R}^{2}$ is the two dimensional vector of spatial coordinates,  $\bold{x}^{c} \in \mathbb{Z}_{+}^{V}$ is the $V$ discrete dimensional vector of color counts, and $t \in \{1, \ldots, T \}$ is the discrete time index. 
+Additional features may be extracted from each pixel to attempt more sophisticated object representations, including pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, and texture representations. We leave these attempts for future studies.
+
+% We defined the task of extraction to be the unsupervised determination of which spatiotemporal regions of a video constitute objects, and outlined a number of extraction methods in Section~\ref{sec:priorwork}. The most basic dataset that can be gained from extraction is comprised of the three-dimensional points $\bold{x} = ( x_{1}, x_{2}, t ) \in \mathbb{R}^{2} \times \mathbb{Z}_{+}$, where $x_{1}$ and $x_{2}$ are the two spatial dimensions of a pixel contained in a region found during extraction and $t$ is the frame in which the pixel resides. Once this dataset, which we will refer to as a ``baseline extraction dataset'', has been found, additional features may also be extracted from the video. Examples of additional features include color information, pixel intensity values, feature point (such as corner, shape, or edge) locations or spatial characteristics, and texture representations; the main idea is to choose features which are able to be easily extracted or computed, capture variability in the appearance of objects, and are applicable to a wide variety of object types.
+
+% The baseline extraction dataset has the appearance of worm-like clusters that follow the paths of individual objects as they move (as illustrated in Figure~\ref{fig:longimg_all}). Modeling this data with a dependent Dirichlet process mixture model (Section~\ref{sec:gpuddpmixture}) allows us to perform inference (Section~\ref{sec:inference}), which carries out clustering of the data. By choosing this type of model, we aim to provide a clustering result that isolates each worm-like cluster and infers a sequence of distributions for each, which we use to gain localization and tracking results for each object (Section~\ref{sec:inferencetotrackingresults}).
+
+% For implementation in experiments (Section~\ref{sec:experiments}), we desire an extraction procedure that is as unsophisticated as possible, both to gauge the robustness of this method on potentially noisy extraction data and to ensure that the procedure is applicable to a wide range of videos. Consequently, in all experiments we carry out a method called ``frame-differencing'', which locates motion by recording the positions of pixels that have exhibited differences in intensity or value in succesive frames beyond a given threshold. Frame differencing is unsophisticated, computationally inexpensive, able to be applied to a wide range of static, single-camera videos (note that videos used in all experiments were stationary; moving-camera videos require extraction methods that provide accurate foreground segmentation for non-stationary video). We have found that, when correctly implemented, frame differencing is sufficiently general to extract the desired worm-like clusters from a variety of videos containing multiple moving objects. A few examples of this extraction procedure on pairs of consecutive video frames can be found in Figure~\ref{fig:img_and_framediff}(a-i).
+
+% We furthermore wish to capture the color (or grayscale) value of each pixel and incorporate this color information into our model. For each pixel $x = (i, j, t)$ recorded during frame differencing, we specify a square, $L$ pixels in length, centered on $(i, j)$, that selects a set of pixels surrounding $\bold{x}$ in frame $t$. We also specify a scalar color value that is able to be computed for each pixel; this value could, for example, be some function of the red-green-blue (r-g-b) or hue-saturation-value (h-s-v) characteristic of a pixel. The color value of each of the selected pixels surrounding $\bold{x}$ is recorded. Afterwards, the set of possible color values (ie the range of color values to which a pixel may be assigned) is partitioned into $V$ bins, and the number of pixels with a color value lying in each of the bins yields a $V$ dimensional vector of `color counts'. We will refer to this extraction technique as `color counting'.
+
+% The frame differencing and color counting extraction yields a set of data $\bold{X} \subset \mathbb{R}^{2} \times \mathbb{Z}_{+}^{V} \times \{1, \ldots, T \}$, where each element $\bold{x} \in \bold{X}$ can be written
+% \begin{equation}
+% \bold{x} = ( \bold{x}^{s}, \bold{x}^{c}, t ) = ( x^{s_{1}}, x^{s_{2}}, x^{c_{1}}, \ldots, x^{c_{V}}, t )
+% \end{equation}
+% where $\bold{x}^{s} \in \mathbb{R}^{2}$ is the two dimensional vector of spatial coordinates,  $\bold{x}^{c} \in \mathbb{Z}_{+}^{V}$ is the $V$ discrete dimensional vector of color counts, and $t \in \{1, \ldots, T \}$ is the discrete time index. 
+
+% In the experiments described in Section~\ref{sec:experiments}, the hue component of the h-s-v value is recorded from all pixels that surround each extracted pixel $\bold{x}$ in the manner described above, choosing $L=5$. Additionally, the set of possible hue values is partitioned into 10 bins, and the number of pixels with a hue value lying in each of the 10 bins is recorded to yield the vector of ``color counts'' $\bold{x}^{c} = x^{c_{1}}, \ldots, x^{c_{10}}$. Hue is chosen to represent object color since it has been demonstrated in previous work as a simple representation of object appearance that allows for distinct objects to be well differentiated \cite{perez_2002, raja_1998, mckenna_1999}.
+
+
+% Model Overview
+% --------------
+
+\section{Model Definition}
+\label{sec:modeldefinition}
+
+A type of Dependent Dirichlet Process Mixture (DDPM) model known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM) is used to provide a model-based, time dependent clustering of the extracted data. The model definition is provided in Section~\ref{sec:gpuddpm}, a secondary form of the model used in one of the two inference algorithms is given in Section~\ref{sec:MCMC}, and background information introducing mixture models and the Dirichlet process are given in Appendix~\ref{sec:modelbackground}.
+
+
+% GPUDDPM definition
+% ------------------
+
+\subsection{Generalized Polya Urn Dependent Dirichlet Process Mixture Model}
+\label{sec:gpuddpm}
+
+The extracted data contain a collection of spatiotemporal clusters, each representing an object in the video. The number of clusters present in each time step may not be constant (which is to say, clusters may be created, or be ``born'', and may disappear, or ``die'', at intermediate time steps), since objects can enter and exit a scene. To cluster data with these properties, we choose a DDPM known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), introduced by \cite{caron_2007} in 2006. This model may be intuitively viewed as a sequence of DPMs, where the parameters and number of clusters are allowed to vary in a specified way between adjacent time steps. Like the DPM, the GPUDDPM allows for the number of clusters within a dataset---which, in this application, corresponds to the number of objects---to be found in an automated manner.
+
+As in typical mixture models, each observation $\bold{x}_{i,t}$ is associated with an assignment variable $c_{i,t}$ that represents its assignment to a cluster $\theta_{k,t}$. Usually, the size of each cluster $m_{k,t}$ is a function of the number of observations that have been assigned to it, but in this model, cluster sizes may decrease over time as observations become ``unassigned''; this allows clusters to decrease in strength and potentially die. We define a distribution over the size of cluster $k$ at time $t$ ($m_{k,t}$) conditioned on the previous cluster size ($m_{k,t-1}$), assignments at time $t$ ($c_{1:N_{t}, t}$), and deletion parameter $\rho$ to be
+\begin{equation}
+\begin{split}
+\label{D_distro}
+\text{D} &(m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) := \hspace{2mm} m_{k,t-1} \\
+&- \text{Binomial}( m_{k,t} | {m_{k,t-1}, \hspace{1mm} \rho}) + \sum_{i=1}^{N_{t}} \mathbb{I}(c_{i,t} = k)
+\end{split}
+\end{equation}
+$\forall k \in \{1, \ldots, K_{t} \}$, where $K_{t}$ is the number of clusters at time $t$ and $\mathbb{I}(c_{i,t} = k)$ is an indicator function whose value is 1 if $c_{i,t} = k$ and 0 otherwise. We also define a distribution over the assignment of an observation $i$ at time $t$ to a cluster $k$ ($c_{i,t} = k$) conditioned on the sizes of all clusters at time $t$ ($m_{1:K_{t},t}$) and a concentration parameter $\alpha$, to be
+\begin{equation}
+\begin{split}
+\label{C_distro}
+\text{C} ( c_{i,t} = k | &m_{1:K_{t},t}, \hspace{1mm} \alpha)\\ :=
+& \begin{cases}
+\frac{m_{k,t}}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{1mm} \text{if} \hspace{1mm} k \in \{ 1, \ldots, K_{t} \} \\
+\frac{\alpha}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{1mm} \text{if} \hspace{1mm} k = K_{t} + 1
+\end{cases}
+\end{split}
+\end{equation}
+% \begin{equation}
+% \label{C}
+% \begin{split}
+% \text{C} &(\cdot | m_{1:K_{t},t}, \hspace{1mm} \alpha) := \text{Discrete}(\cdot | P(c_{i,t}=1 | m_{1:K_{t},t}), \\
+% &  \ldots, P(c_{i,t}=K_{t+1}  | m_{1:K_{t},t}))
+% \end{split}
+% \end{equation}
+% where
+% \begin{equation}
+% \begin{split}
+% P (c_{i,t}=k  | m_{1:K_{t},t})
+% = \begin{cases}
+% \frac{m_{k,t}}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{1mm} \text{if} \hspace{1mm} k \in \{ 1, \ldots, K_{t} \} \\
+% \frac{\alpha}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{1mm} \text{if} \hspace{1mm} k = K_{t} + 1
+% \end{cases}
+% \end{split}
+% \end{equation}
+$\forall i \in \{1, \ldots, N_{t} \}$, where there exists $K_{t}$ clusters at time $t$ and we give a newly created cluster the index $K_{t+1}$. Distributions \eqref{D_distro} and \eqref{C_distro} together comprise what \cite{caron_2007} refers to as the ``Generalized Polya Urn''. We can now define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$, and each cluster $k \in \{ 1, \ldots, K_{t} \}$ at time $t$,
+\begin{align}
+\label{gpuddpm_def}
+\begin{split}
+m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho  &\sim \text{D}(m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) \\
+\theta_{k, t} | \theta_{k, t-1}   &\sim
+\begin{cases}
+  P(\theta_{k, t} | \theta_{k, t-1}) \hspace{1mm} \text{if} \hspace{1mm} k \in \{ 1, \ldots, K_{t} \} \\
+  \mathbb{G}_{0}   \hspace{2mm} \text{if} \hspace{2mm} k = K_{t+1}
+\end{cases} \\
+c_{i,t} | m_{1:K_{t},t}, \hspace{1mm} \alpha  &\sim  \text{C} (m_{1:K_{t},t}, \hspace{1mm} \alpha) \\
+\bold{x}_{i,t} | c_{i,t}, \theta_{1:K_{t}, t} &\sim \text{F}(\theta_{c_{i,t}, t})
+\end{split}
+\end{align}
+where we specify distributions for F, $\mathbb{G}_{0}$, and $P(\theta_{k, t} | \theta_{k, t-1})$ in Section~\ref{sec:modelspecification}. The graphical model associated with this formulation is shown in Fig.~\ref{fig:gpuddpm_gm_1}.
+\begin{figure}[h]
+        \center{\includegraphics[width=80mm]{../img/gpuddp_gm_1.pdf}}
+        \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Polya Urn Dependent Dirichlet Process Mixture. Note that all observations at time $t$, $\bold{x}_{1:N,t}$, and their associated assignments $c_{1:N,t}$ are denoted respectively as $\bold{x}_{t}$ and $c_{t}$ (this also holds for time step $t-1$).}
+\end{figure}
+
+
+
+% Model Specification
+% -------------------
+
+\section{Model Specification}
+\label{sec:modelspecification}
+
+Sections~\ref{sec:objectappearance}-\ref{sec:motionmodel} describe the distributions chosen to fully specify the general GPUDDPM model form given in Section~\ref{sec:gpuddpm}. The implementation given below was used for all the experiments of Section~\ref{sec:experiments}. The distributions F, $\mathbb{G}_{0}$, and $P(\theta_{k, t} | \theta_{k, t-1})$ represent object appearance, appearance prior, and object movement; different specifications allow one to choose a model biased toward a specific application or kept general for wide applicability.
+
+
+\subsection{Object Appearance (Mixture Component)}
+\label{sec:objectappearance}
+
+At a given time $t$, we model each observation $\bold{x} \in \bold{X}$ as a draw from the product of a multivariate normal and multinomial distribution
+\begin{equation}
+\label{likelihood}
+\text{F}(\bold{x}|\theta) = \mathcal{N}(\bold{x}^{s} | \boldsymbol{\mu}, \Sigma)  \mathcal{M}n(\bold{x}^{c} | \bold{p})
+\end{equation}
+where $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ denote the parameters of a cluster at time $t$, with mean $\boldsymbol{\mu} \in \mathbb{R}^{2}$, covariance matrix $\Sigma \in \mathbb{R}^{2} \times \mathbb{R}^{2}$, and discrete probability vector $\bold{p} = (p_{1}, \ldots, p_{V})$ such that $\sum_{i=1}^{V}p_{i} = 1$. Additionally, $\mathcal{N}$ denotes the multivariate normal distribution, $\mathcal{M}n$ denotes the multinomial distribution, and F is sometimes referred to as the likelihood.
+
+The distribution families assumed to generate each $\bold{x}$ must be justified.
+%Both the multivariate normal and multinomial distributions were chosen because they are sufficiently simple (and well studied) to allow for tractable inference and sufficiently flexible to provide a reasonable approximation to the data gained during extraction.
+The multivariate normal distribution over the spatial features $\bold{x}^{s}$ represents the shape of each object as an oval; likewise, data generated by each moving object during extraction are often ovular.
+%---as noisy extraction procedures cause some smoothing of edges and corners, producing blob-like shapes even when objects are not particularly round---and centered on a given object.
+% Furthermore, this model is justified as the maximum likelihood parameter estimate of a normal distribution corresponds to the least squares fit of data relative to the normal distribution mean; 
+Since extraction data produced by an object clusters around the centroid of the object, the estimated normal distribution mean should provide a reasonable reflection of the object's centroid.
+Modeling the color features $\bold{x}^{c}$ as draws from a multinomial distribution (equivalently, as draws from a product of discrete distributions), is justified since we have observed that distinct object tend to generate pixels whose hue values are noisy but yield consistent counts in discrete hue bins.
+
+
+\subsection{Appearance Prior (Base Distribution)}
+\label{sec:appearanceprior}
+
+$\mathbb{G}_{0}$ denotes the base distribution of the time-dependent Dirichlet process mixture; it also serves as a prior distribution for the parameters $\theta = \{ \boldsymbol{\mu}, \Sigma, \bold{p} \}$ present in the mixture components (i.e. the parameters we've used to model object appearance). We make use of conjugate priors in the base distribution to allow for more efficient computation. Specifically, in the experiments carried out in this paper, a normal-inverse-Wishart prior is placed on the multivariate normal parameters $\{ \boldsymbol{\mu}, \Sigma \}$, and a Dirichlet prior is placed on the multinomial parameter $\bold{p}$ (where the normal-inverse-Wishart is a conjugate prior for the multivariate normal component of the likelihood and the Dirichlet is a conjugate prior for the multinomial component). The prior can therefore be written
+\begin{equation}
+\label{basedistro}
+\mathbb{G}_{0}(\theta) = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
+\end{equation}
+where $\mathcal{N}i\mathcal{W}$ denotes the normal-inverse-Wishart distribution, $\mathcal{D}ir$ denotes the Dirichlet distribution, and the prior has the hyperparameters $\boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0}$ and $\bold{q}_{0}$.
+
+
+\subsection{Motion Model (Transition Kernel)}
+\label{sec:motionmodel}
+
+We wish to formulate a transition kernel $P(\theta_{t} | \theta_{t-1})$ that provides a reasonable representation of how we expect tracked objects to move over time. Since we want our model to be used for tracking arbitrary objects, we do not wish to make any sophisticated assumptions about the behavior of objects. For example, we choose not to incorporate complex objects dynamics, though they are often used with success in certain object-specific tracking tasks, such as tracking walking people. We assume only that the position of an object at a given time is a function of its position at the previous time, and that the position varies in all directions equally between time steps. A transition kernel that incorporates more sophisticated behavioral tendencies is left for future studies (especially for those intending to use this model for a more specific object type or application).
+
+The base distribution $\mathbb{G}_{0}$ must be the invariant distribution of the transition kernel $P(\theta_{t} | \theta_{t-1})$ in order for the the cluster parameters to remain marginally distributed according to the base distribution. In other words, the transition kernel must satisfy
+\begin{equation}
+\int \mathbb{G}_{0}(\theta_{t-1})P(\theta_{t} | \theta_{t-1}) d\theta_{t-1} = \mathbb{G}_{0}(\theta_{t})
+\end{equation}
+for a given cluster with parameters $\theta$. One way to achieve this is through the use of auxiliary variables. Auxiliary variables are a set of $M$ variables $\bold{z}_{t} = (z_{t,1}, \ldots, z_{t,M})$ associated with a each cluster at time $t$ that satisfy
+\begin{eqnarray}
+% P(\theta_{k,t} | \theta_{k,t-1}) = \int P(\theta_{k,t} | \bold{z}_{k,t}) P(\bold{z}_{k,t} | \theta_{k,t-1}) d \bold{z}_{k,t}
+P(\theta_{t} | \theta_{t-1}) = \int P(\theta_{t} | \bold{z}_{t}) P(\bold{z}_{t} | \theta_{t-1}) d \bold{z}_{t}  %\\
+% P(\theta', \bold{z}_{t}) = p(\bold{z}_{t}|\theta') \mathbb{G}_{0}(\theta')
+\end{eqnarray}
+
+In this way, the parameters of a cluster at a given time do not depend directly on their value at the previous time; they are instead dependent upon an intermediate sequence of auxiliary variables chosen to satisfy the above criteria, which allows the cluster parameters at each time step to be marginally distributed according to the base distribution $\mathbb{G}_{0}$.
+
+For each cluster, we introduce $M$ auxiliary variables $z_{t, 1}, \ldots, z_{t, M}$ at time $t$ that are each drawn from the product of a multivariate normal and multinomial when conditioned on the associated cluster parameters $\theta_{t} = \{ \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} \}$:
+\begin{equation}
+\label{transker1}
+z_{t, m} | \boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t}  \sim  \mathcal{N}(\boldsymbol{\mu}_{t}, \Sigma_{t}) \mathcal{M}n(\bold{p}_{t})   \hspace{15pt}   
+\forall m \in \{ 1, \ldots, M \}
+\end{equation}
+To satisfy the above criteria for auxiliary variables, at each time $t$ we specify the dependencies of a given cluster on its associated set of auxiliary variables by
+\begin{equation}
+\label{transker2}
+\boldsymbol{\mu}_{t}, \Sigma_{t}, \bold{p}_{t} | \bold{z}_t  \sim  \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{M}, \kappa_{M}, \nu_{M}, \Lambda_{M})  \mathcal{D}ir(\bold{q}_{M})
+\end{equation}
+where $\boldsymbol{\mu}_{M}, \kappa_{M}, \nu_{M}, \Lambda_{M},$ and $\bold{q}_{M}$ are parameters given by
+\begin{eqnarray}
+\kappa_{M} &=& \kappa_{0} + M \\
+\nu_{M} &=& \nu_{0} + M \\
+\boldsymbol{\mu}_{M} &=& \frac{\kappa_{0}}{\kappa_{0}+M} \boldsymbol{\mu}_{0}  +  \frac{M}{\kappa_{0}+M} \overline{\bold{z}_t}^{s}\\
+\Lambda_{M} &=& \Lambda_{0} + S_{\bold{z}_{t}^{s}}\\
+\bold{q}_{M} &=& \bold{q}_{0} + \sum_{m=1}^{M} z_{t,m}^{c}
+\end{eqnarray}
+where $M$ is the number of auxiliary variables, \\
+$\{ \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0} \}$ are the $\mathcal{N}i\mathcal{W}$ prior parameters, $\bold{q}_{0}$ is the $\mathcal{D}ir$ prior parameter, $\bold{z}^{s}$ and $\bold{z}^{c}$ respectively denote the spatial and color features of an auxiliary variable $\bold{z}$, and $\overline{\bold{z}}$ and $S_{\bold{z}}$ respectively denote the sample mean and sample covariance for a set $\bold{z} = \{ z_{1}, \ldots, z_{M} \}$ (of auxiliary variables, in this case), which we can define as
+\begin{eqnarray}
+\label{samplemean}
+\overline{\bold{z}}  &=&  \left( \sum_{m=1}^{M} z_{m} \right) / M\\
+\label{samplecov}
+S_{\bold{z}}  &=&  \sum_{m=1}^{M} (z_{m} - \overline{\bold{z}}) (z_{m} - \overline{\bold{z}})^{T}
+\end{eqnarray}
+
+
+\subsection{Recap of Parameters in Model}
+\label{sec:recapofparameters}
+
+The multivariate normal-multinomial GPUDDPM implemented in this study has a number of parameters, which can be tuned to increase the efficacy of object detection and tracking. \\ \\
+Object appearance parameters include:
+\begin{center}
+\begin{tabular}[c]{l p{7cm}}
+$\boldsymbol{\mu}_{0}$  &  The mean prior. In experiments performed in Section~\ref{sec:experiments} the data was recentered to the origin, and this parameter was set to $(0,0)$ \\
+$\kappa_{0}$  &  scale factor of the variance of the prior on the mean\\
+$\nu_{0}$  &  scale factor of the variance of the prior on the covariance\\
+$\Lambda_{0}$  &  shape factor of the prior on the covariance\\
+$\bold{q}_{0}$  &  scale factor of the prior on the multinomial counts
+\end{tabular}
+\end{center} \vspace{3mm}
+The following parameter dictates characteristics involving the movement of objects
+\begin{center}
+\begin{tabular}[c]{l p{7cm}}
+$M$  &  Number of auxiliary variables. A large number will produce lower variation in position (better for slower objects) and a low number will produce higher variation in position.
+\end{tabular}
+\end{center} \vspace{3mm}
+Additionally, one can tune the model's tendency to detect new objects and maintain the existence of these objects (or the rate at which objects become inactive or leave the video) with the following parameters
+\begin{center}
+\begin{tabular}[c]{l p{7cm}}
+$\alpha$  &  The concentration parameter for the Dirichlet Process. A higher value will increase the tendency for new objects to be detected.\\
+$\rho$  &  The deletion parameter. A higher value will give objects an increased tendency to die off.
+\end{tabular}
+\end{center}
+
+We have not found an easily justifiable way to choose parameters. For the appearance and movement parameters, samples were drawn given a range of parameter values, and those that yielded samples similar in appearance to the experimental data were kept (a technique also performed in \cite{gasthaus_thesis}). The parameters chosen for use in experiments (Section~\ref{sec:experiments}) were accepted based on the fact that they yielded reasonable results. Additionally, a sensitivity analysis was carried out for the concentration and deletion parameters ($\alpha$ and $\rho$), where a range of values for both were chosen, and inference performed for each; results of this analysis are discussion in Section~\ref{sec:sensitivityanalysis}.
+
+
+
+% Inference
+% ---------
+
+\section{Inference}
+\label{sec:inference}
+
+Bayesian inference algorithms, which infer distributions over latent model parameters, are used to get detection and tracking results. A variety of methods previously developed for statistical inference can be applied to the generative model defined in Sections~\ref{sec:} and \ref{sec}.
+
+ we separate presentations of model and inference so that multiple inference methods, each with its own benefits in terms of precision and speed, can be formulated as independent algorithms for detection and tracking. This section provides background on the two inference algorithms implemented in this study, which are both used to perform Bayesian inference on the model described in Section~\ref{sec:modelspec}. The first is a type of Markov Chain Monte Carlo (MCMC) batch inference, which uses Gibbs sampling to generate samples from the posterior distribution of the model. The second is a type of Sequential Monte Carlo (SMC) inference, also known as a particle filter, which also generates samples from the posterior distribution of the model, but in a sequential manner that makes use of the time-dependent nature of the data.
+
+
+\subsection{MCMC: Batch Inference}
+\label{sec:MCMC}
+
+This section details a Markov Chain Monte Carlo (MCMC) sampler used to perform inference, which serves as an algorithm for unsupervised detection and tracking. It operates by iteratively sampling from conditional distributions of elements in the joint probability distribution---i.e. it implements Gibbs sampling---in order to gain approximate samples from the posterior distribution of the cluster parameters given the data. Additionally, this sampler makes use of the Metropolis-Hastings (M-H) algorithm to sample from a few distributions. A secondary formulation of the GPUDDPM, which we refer to as the ``Deletion Variable Formulation'', is used (defined in Section~\ref{sec:deletionvariableformulation}). This formulation is equivalent to the formulation given in Section~\ref{sec:gpuddpm}, but allows for easier Gibbs sampling.
+
+
+\subsubsection{Deletion Variable Formulation of the GPUDDPM}
+\label{sec:deletionvariableformulation}
+
+Instead of incorporating the cluster size variable $m_{k,t}$ directly in the GPUDDPM model (as it was in the definition given by \eqref{gpuddpm_def}), we can formulate an equivalent model which makes use of new set of variables called the deletion variables, which represent the times at which assignments are deleted. More precisely, each deletion variable $d_{i,t}$ denotes the time at which the associated observation $\bold{x}_{i,t}$ is considered removed from its assigned cluster $c_{i,t}$. At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. Specifically, we can compute the size of cluster $k$ at time $t$, $m_{k,t}$, by
+\begin{equation}
+\label{compute_clust_size}
+m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
+\end{equation}
+where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $\bold{x}_{i,t}$, the deletion time $d_{i,t}$ can be defined to be $d_{i,t} = t + l_{i,t}$, where $l_{i,t}$ can be thought of as the lifespan of an assignment, is distributed geometrically, and can be expressed as
+\begin{equation}
+\label{del_rho_form}
+l_{i,t} | \rho  \sim  \rho(1 - \rho)^{l_{i,t}}
+\end{equation}
+where the deletion parameter $\rho$ is the same as that given in \eqref{D_distro}. We can write the new formulation of the GPUDDPM as, for each time step $t \in \{1, \ldots, T\}$ and cluster $k \in \{ 1, \ldots, K_{t} \} $ at time $t$,
+\begin{align}
+\begin{split}
+d_{i,t} | \rho  &\sim \text{Geo}(\rho) + t + 1 \\
+\theta_{k, t} | \theta_{k, t-1}  &\sim
+\begin{cases}
+P(\theta_{k,t} | \theta_{k,t-1}) \hspace{2mm} \text{if} \hspace{2mm} k \in \{ 1, \ldots, K_{t} \} \\
+\mathbb{G}_{0} \hspace{2mm} \text{if} \hspace{2mm} k = K_{t} + 1
+\end{cases} \\
+c_{i,t} | \bold{c}_{1:t-1}, \bold{d}_{1:t-1}, \alpha  &\sim  \text{C}(\bold{c}_{1:t-1}, \bold{d}_{1:t-1}, \alpha) \\
+\bold{x}_{i,t} | c_{i,t}, \theta_{c_{i,t},t}  &\sim  \text{F}(\theta_{c_{i,t}, t})
+\end{split}
+\end{align}
+where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$ (for $N_{t}$ observations at time $t$), $\bold{d}_{t} = d_{1,t}, \ldots, d_{N_{t}, t}$, and we specify distributions for F, $\mathbb{G}_{0}$, and $P(\theta_{k, t} | \theta_{k, t-1})$ in Section~\ref{sec:modelspecification}. This formulation of the GPUDDPM is also used by \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
+\begin{figure}[h]
+        \center{\includegraphics[width=82mm]{../img/gpuddp_gm_3.pdf}}
+        \caption{Graphical model of the deletion variable and auxiliary variable transition kernel representation of the GPUDDPM}
+        \label{fig:gpuddpm_gm_2}
+\end{figure}
+
+We define the state of the sampler to consist of the assignment variables for all observations, $c_{1:N_{1},1}, \ldots, c_{1:N_{T}, T}$, the deletion variables for all observations, $d_{1:N_{1},1}, \ldots, d_{1:N_{T}, T}$, the sequence of cluster parameters for each active cluster, $\theta_{k,1}, \ldots, \theta_{k, T}$ and the $M$ associated auxiliary variables for each cluster $\theta_{k,t}$ at time $t$, $z_{k,t,1}, \ldots, z_{k, t, M}$. We can write
+\begin{equation}
+\text{State} = \{ \bold{c}_{1:T}, \bold{d}_{1:T}, \Theta_{1:T}, \bold{m}_{1:T} \}
+\end{equation}
+where $\bold{c}_{t} = c_{1:N_{t},t}$, $\bold{d}_{t} = d_{1:N_{t},t}, \Theta_{t} = \theta_{1:K_{t}, t}$, and $m_{1:K_{t},t}$.
+The sampler performs an MCMC method known as Gibbs sampling; it operates by iteratively sampling each member of the state given all other members. In particular, at each time $t$ it moves sequentially through each of the $N_{t}$ observations, sampling the assignment $c_{i,t}$ and the deletion variable $d_{i,t}$. After the final observation at a given time is sampled, the cluster parameters for all active clusters at $t$ are sampled, and a M-H step is employed to sample the $M$ auxiliary variables for each active cluster. Before the samples can be iteratively drawn from each element of the state given all other elements, the state must be initialized. While the state of the sampler can be initialized at any value, beginning at a value closer to the maximum joint probability (over the state) allows for quicker inference. The following sections detail how each sample in the model is drawn.
+
+
+% mcmc: sampling assignment variables
+% -----------------------------------
+
+\subsubsection{Sampling Assignment Variables $c_{i,t}$}
+\label{sec:sample_assignments}
+
+A value proportional to the posterior probability can be computed for each possible value that $c_{i,t}$ may take on; these values allow us to construct a discrete probability distribution from which we can draw samples from the posterior distribution over assignments. The possible values that the assignment may take on are $c_{i,t} = k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*}\}$, where $K_{t}^{'}$ is the number clusters with a non-zero size at any point between time $t$ and the assignment's associated deletion time $d_{i,t}$, and $k^{*}$ is a potential new cluster. The probability that $c_{i,t}$ is assigned to a cluster $k$ can be computed for each $k \in \{ 1 , \ldots ,  K_{t}^{'}, k^{*} \}$, given all other members of the state, by
+\begin{equation}
+\label{mcmc_assig_vars}
+\begin{split}
+p(c_{i,t} = k | \text{State}) & \propto
+\prod_{i'=i}^{N_{t}}  \text{C}(c_{i',t} | \bold{m}_{t-1}, \alpha) \\
+& \times \prod_{t' = t+1}^{d_{i,t}}  \prod_{i'=1}^{N_{t'}}   \text{C}(c_{i',t'} | \bold{m}_{t'-1}, \alpha) \\
+ & \times
+\begin{cases}
+  F(\bold{x}_{i,t} | \theta_{k,t})                                        \hspace{12pt} \text{if} \hspace{4pt} k \in \{ 1, \ldots, K_{t}^{'} \} \\
+  \int P(\bold{x}_{i,t} | \theta) \mathbb{G}_{0}(\theta) d\theta    \hspace{12pt} \text{if}  \hspace{4pt}  k = k^{*}
+\end{cases}
+\end{split}
+\end{equation}
+where the C is given by \eqref{C_distro}, and the sizes of the clusters $\bold{m}_{t'-1}$ are calculated under the assumption that $c_{i,t} = k$. Note that the above integral can be determined analytically to give
+\begin{equation}
+\label{marginal_obs_prob}
+\int P(\bold{x}_{i} | \theta) \mathbb{G}_{0}(\theta)d\theta = \text{Student}_{\nu_{n} - 1}(\mu_{n}, \Lambda_{n}/(\kappa_{n}(\nu_{n}-1)))
+\end{equation}
+where ``Student'' denotes the Student's t distribution, where we follow the three-value parameterization (location parameter, scale parameter, and degrees of freedom) given in \cite{gelman2004bayesian}.
+
+%%%%%
+% Need to include ratio of Dirichlet also in the above posterior predictive distro of a single observation, and discuss how to compute any parameters in here that aren't yet specified
+%%%%%
+
+If a new cluster is sampled as an assignment, the cluster parameters and auxiliary variables for this new cluster must be initialized for all time steps before sampling can proceed. In experiments, this initialization was carried out by iteratively samping forward to time T and backwards to time 1 via the transition kernel.
+
+
+% mcmc: sampling cluster parameters
+% ---------------------------------
+
+\subsubsection{Sampling Cluster Parameters $\theta_{k, t}$}
+The conjugacy of the chosen distributions in the appearance model and transition kernel allow for posterior samples of the cluster parameters to be easily gained, and gives us
+% \begin{eqnarray}
+% P(\theta_{k,t} | state) && = P(\bold{x}_{i} | \theta_{k,t}) P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) \\
+%  && = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}, \Sigma | \boldsymbol{\mu}_{0}, k_{0}, v_{0}, \Lambda_{0})  \mathcal{D}ir( \bold{p} | \bold{q}_{0})
+% \end{eqnarray}
+\begin{align}
+\begin{split}
+P(\theta_{k,t} | \text{State}) & = P(\bold{x}_{i,t} | \theta_{k,t}) P(z_{k,t+1,1:M} | \theta_{k,t})  P(\theta_{k,t} | z_{k,t,1:M}) \\
+ & = \mathcal{N}i\mathcal{W}(\boldsymbol{\mu}_{k,t}, \Sigma_{k,t} | \boldsymbol{\mu}_{N}, k_{N}, v_{N}, \Lambda_{N})  \mathcal{D}ir( \bold{p}_{k,t} | \bold{q}_{N})
+\end{split}
+\end{align}
+Where the parameters in the above distribution are given when the data at time $t$, auxiliary variables $z_{k,t-1,1:M}$ at time $t-1$, and auxiliary variables $z_{k,t,1:M}$ at time $t$, are taken to be the observations for the following Bayesian updates
+\begin{eqnarray}
+\label{bayesian_update_1}
+\kappa_{N} &=& \kappa_{0} + N \\
+\label{bayesian_update_2}
+\nu_{N} &=& \nu_{0} + N \\
+\label{bayesian_update_3}
+\boldsymbol{\mu}_{N} &=& \frac{\kappa_{0}}{\kappa_{0}+N} \boldsymbol{\mu}_{0}  +  \frac{N}{\kappa_{0}+N} \overline{\bold{x}}^{s}\\
+\Lambda_{N} &=& \Lambda_{0} + S_{\bold{x}^{s}}\\
+\label{bayesian_update_4}
+\bold{q}_{N} &=& \bold{q}_{0} + \sum_{i=1}^{N} \bold{x}_{i}^{c}
+\end{eqnarray}
+where $N$ is the number of observations, $\{ \boldsymbol{\mu}_{0}, \kappa_{0}, \nu_{0}, \Lambda_{0} \}$ are the $\mathcal{N}i\mathcal{W}$ prior parameters, $\bold{q}_{0}$ is the $\mathcal{D}ir$ prior parameter, $\bold{x}^{s}$ and $\bold{x}^{c}$ respectively denote the spatial and color features of the observations, and $\overline{\bold{x}}$ and $S_{\bold{x}}$ respectively denote the sample mean and sample covariance for a set of observations $\bold{x}$, defined in \eqref{samplemean} and \eqref{samplecov}.
+% \begin{eqnarray}
+% \overline{\bold{x}}  &=&  \left( \sum_{i=1}^{N} \bold{x}_{i} \right) / N\\
+% S_{\bold{x}}  &=&  \sum_{i=1}^{N} (\bold{x}_{i} - \overline{\bold{x}}) (\bold{x}_{i} - \overline{\bold{x}})^{T}
+% \end{eqnarray}
+
+
+% mcmc: sampling auxiliary variables
+% ----------------------------------
+
+\subsubsection{Sampling Auxiliary Variables $z_{k,t,m}$}
+The posterior distribution of each of the auxiliary variables $z_{k,t,m}$ can be written as
+\begin{equation}
+\label{stationary_pdf}
+P(z_{k,t,m} | \text{State}) \propto  P(z_{k,t,m} | \theta_{k,t-1}) P(\theta_{k,t} | z_{k,t,1:M})
+\end{equation}
+This distribution does not allow for samples to be easily drawn and thus requires a more sophisticated MCMC technique. In particular, the Metropolis-Hastings (M-H) algorithm is used to gain samples from the posterior distribution for the auxiliary variables; it involves constructing a markov chain with the sought posterior as its stationary distribution, and sampling sequentially from this constructed chain to get an approximate posterior sample. 
+% The M-H algorithm is outlined in Algorithm 1.%Algorithm~\ref{alg:MH}. \willie{am i citing wrong?}
+
+% \begin{algorithm}[h!]
+% \label{alg:MH}
+% \caption{Metropolis Hastings Algorithm}
+% \begin{algorithmic}[1]
+% \STATE $f(x)$ is the stationary PDF from which $N$ samples are desired \hfill $\triangleright$ eq. \eqref{stationary_pdf}
+% \STATE $q( \cdot | x_{i-1})$ is the proposal pdf \hfill $\triangleright$ eq. \eqref{proposal_distro}
+% \STATE B is the number of burn in samples
+% \STATE $x_{0} \leftarrow$ initialize
+% %\STATE B $\leftarrow$ \# of burn in samples
+% \FOR{$i = 1 : \text{B} + N$}
+% \STATE Sample $x^{*} \sim q( \cdot | x_{i-1})$
+% \STATE Sample $\alpha \sim \text{Uniform}(0,1)$
+% \STATE $r_{accept} \leftarrow \frac{f(x^{*})q(x_{i-1} | x^{*})} {f(x_{i-1})q(x^{*} | x_{i-1})} $ \hfill $\triangleright$  eq. \eqref{accept_ratio}
+% \IF{$\alpha < \text{min} \{ 1, r_{accept} \} $}
+% \STATE $x_{i} \leftarrow x^{*}$
+% \ELSE
+% \STATE $x_{i} \leftarrow x_{i-1}$
+% \ENDIF
+% \ENDFOR
+% \STATE Discard samples $x_{1}, \ldots, x_{\text{B}}$
+% \STATE \textbf{Output}: Remaining samples $x_{1}, \ldots, x_{N}$
+% \end{algorithmic}
+% %\caption{Say thing at end}
+% \end{algorithm}
+
+The M-H algorithm is used to sample auxiliary variables for each alive (positive size) cluster. In short, we sample a new value for all $M$ auxiliary variables, denoted $z_{k,t,m}^{*}$, according to the following proposal distribution
+\begin{align}
+\begin{split}
+\label{proposal_distro}
+z_{k,t,m}^{*}  &\sim  P(z_{k,t,m} | \theta_{k,t}) \\
+&= \mathcal{N}(z_{k,t,m}^{s} | \boldsymbol{\mu}_{k,t}, \Sigma_{k,t}) \mathcal{M}n(z_{k,t,m}^{c} | \bold{p}_{k,t})
+\end{split}
+\end{align}
+compute the standard M-H acceptance ratio, which in this case (due to the proposal distribution choice) simplifies to 
+\begin{equation}
+\label{accept_ratio}
+r_{accept} = \frac{P(\theta_{k,t-1} | z_{k,t,m}^{*})}{P(\theta_{k,t-1} | z_{k,t,m})}
+\end{equation}
+and choose these auxiliary variables as the next sample in the constructed sequence if $\alpha < \text{min}(1, r_{accept})$, where $\alpha$ is a sample from a $\text{Uniform}(0,1)$ distribution.
+
+
+% mcmc: sampling deletion variables
+% ---------------------------------
+
+\subsubsection{Sampling Deletion Variables $d_{i,t}$}
+Computing a value proportional to the posterior distribution for each possible value that a given deletion variable may take on may be accomplished in a manner similar to how samples from the posterior distribution of the assignment variables $c_{i,t}$ are gained in Section~\ref{sec:sample_assignments}; however, this may be computationally expensive due to the large number of possible deletion times. To remedy this, the M-H algorithm may again be used to sample from the posterior, where the prior distribution for the deletion times can be used to propose new samples $d_{i,t}^{*}$. As the ``lifetime'' $l_{i,t}$ of each assignment can be shown to be geometrically distributed, we can propose a new deletion time sample with
+\begin{align}
+\begin{split}
+l_{i,t}  &\sim  \text{Geo}(\rho)  \\
+d_{i,t}^{*}  &= l_{i,t} + t + 1
+\end{split}
+\end{align}
+and accept or reject this sample using the standard M-H acceptance ratio. 
+
+%%%%%
+% need to include the "standard M-H acceptance ratio"
+%%%%%
+
+
+\subsection{SMC: Sequential Inference}
+\label{sec:SMC}
+
+This section details a Sequential Monte Carlo (SMC) sampler---also known as a particle filter---used to perform inference, which provides another method for unsupervised detection and tracking. SMC inference operates in the orginal GPUDDPM formulation (defined in Section~\ref{sec:gpuddpm}). The algorithm is shown in Algorithm~\ref{alg:SMC}. At each time step $t \in \{ 1, \ldots, T \}$, a number of samples refered to as ``particles'' are generated; each particle consists of a sample from the posterior distribution over the assignment for each observation, $c_{1,t}, \ldots, c_{N_{t}, t}$, parameters for each cluster $\theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and size after deletion for each cluster $m_{1,t}, \ldots, m_{K_{t},t}$. A set of particles is sampled at each time step from relevant proposal distributions (described in Sections~\ref{sec:smc_proposal_1}, \ref{sec:smc_proposal_2}, and \ref{sec:smc_proposal_3}), a weight is computed for each particle, and a new set of particles are sampled from the set of weighted particles via a resampling process. Within each time step, Gibbs sampling is used to generate the samples associated with each particle.
+
+The sequence of target distributions for the SMC algorithm may be written as
+\begin{equation}
+\begin{split}
+%\pi_{t}(c_{1:N_{1}, 1}, \ldots, c_{1:N_{t}, t}, & \theta_{1:K_{1}, 1}, \ldots, \theta_{1:K_{t}, t}, m_{1:K_{1}, 1}, \ldots, m_{1:K_{t}, t}) = \\
+%\pi_{t-1}(c_{1:N_{1}, 1}, \ldots, c_{1:N_{t-1}, t-1}, & \theta_{1:K_{1}, 1}, \ldots, \theta_{1:K_{t-1}, t-1}, m_{1:K_{1}, 1}, \ldots, m_{1:K_{t-1}, t-1}) \\
+\pi_{t}(\bold{c}_{1:t}, \Theta_{1:t}, \bold{m}_{1:t}) & =  \pi_{t-1}(\bold{c}_{1:t-1}, \Theta_{1:t-1}, \bold{m}_{1:t-1})\\
+& \times \prod_{i=1}^{N_{t}} P(c_{i,t} | \bold{m}_{t}, \Theta_{t}, \bold{c}_{1:t}, \bold{x}_{1:N_{t}}) \\
+& \times \prod_{k=1}^{K} 
+\begin{cases}
+\begin{split}
+P(\theta_{k,t} | \theta_{k,t-1}) \hspace{2mm} & \text{if} \hspace{2mm} k \leq K_{t-1} \\
+\mathbb{G}_{0} \hspace{18mm} & \text{if} \hspace{2mm} k > K_{t-1}
+\end{split}
+\end{cases} \\
+& \times \prod_{k=1}^{K} \text{D}(m_{k,t} | m_{k,t-1}, c_{1:N_{t-1}, t-1}, \rho)
+\end{split}
+\end{equation}
+where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$, $\Theta_{t} = \theta_{1,t}, \ldots, \theta_{K_{t}, t}$, and $\bold{m}_{t} = m_{1,t}, \ldots, m_{K_{t}, t}$ The distributions used in the SMC algorithm are described in detail in the following sections.
+
+\begin{algorithm*}[!]
+\caption{Sequential Monte Carlo Inference for the GPUDDPM}
+\label{alg:SMC}
+\begin{algorithmic}[1]
+\FOR{$l = 1 : L$}
+\STATE $w_{0}^{(l)} \leftarrow 1/L$ \hfill $\triangleright$ initialize weights
+\ENDFOR
+\STATE $K_{0}^{(l)} \leftarrow 0$ \hfill $\triangleright$ initialize \# of clusters
+\FOR{$t = 1 : T  \text{  (\# of frames})$}
+\FOR{$l = 1 : L  \text{  (\# of particles})$}
+\STATE $K_{t}^{(l)}  \leftarrow K_{t-1}^{(l)}$
+\STATE $m_{1:K_{t}^{(l)}, t}^{(l)} \leftarrow m_{1:K_{t-1}^{(l)}, t-1}^{(l)}$
+\FOR{$s = 1 : S \text{  (\# of Gibbs samples})$}
+\FOR{$i = 1 : N_{t} \text{  (\# of observations at frame $t$})$}
+\IF{$s=1$}
+\STATE Sample $c_{i,t}^{(l)} \sim P \left( c_{i,t}^{(l)} | m_{1:K_{t-1}^{(l)}, t-1}^{(l)}, \theta_{1:K_{t-1}^{(l)}, t-1}^{(l)}, \alpha \right)$  \hfill $\triangleright$ eq.~\eqref{smc_assig_eqn}
+\STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} + 1$
+\ELSE
+\STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} - 1$
+\STATE Sample $c_{i,t}^{(l)} \sim P \left( c_{i,t}^{(l)} | m_{1:K_{t}^{(l)}, t}^{(l)}, \theta_{1:K_{t}^{(l)}, t}^{(l)}, \alpha \right)$  \hfill $\triangleright$ eq.~\eqref{smc_assig_eqn}
+\STATE $m_{c_{i,t}^{(l)},t}^{(l)} \leftarrow m_{c_{i,t}^{(l)},t}^{(l)} + 1$
+\ENDIF
+\IF{$c_{i,t}^{(l)} = K_{t}^{(l)} + 1  \text{  (a new cluster)}$}
+\STATE Sample $\theta_{c_{i,t}^{(l)}, t}^{(l)} \sim q_{1}(\bold{x}_{i,t})$ \hfill $\triangleright$ eq.~\eqref{smc_q1_eqn}
+\STATE $K_{t}^{(l)} \leftarrow K_{t}^{(l)} + 1$
+\STATE $m_{K_{t}^{(l)},t}^{(l)} \leftarrow 1$
+\ENDIF
+\ENDFOR
+\FOR{$k = 1 : K_{t}^{(l)}  \text{  (\# of clusters at frame $t$})$}
+\IF{$k > K_{t-1}^{(l)}$}
+\STATE Sample $\theta_{k,t}^{(l)} \sim q_{1}(\{ \bold{x}_{1:N_{t}, t} = k \})$  \hfill $\triangleright$ eq.~\eqref{smc_q1_eqn}
+\ELSIF{$k \leq K_{t-1}^{(l)}$ and $ \#\{ \bold{x}_{1:N_{t}, t} = k \} > 0$}
+\STATE Sample $\theta_{k,t}^{(l)} \sim q_{2}(\theta_{k,t-1}^{(l)}, \{ \bold{x}_{1:N_{t}, t} = k \})$  \hfill $\triangleright$ eq.~\eqref{smc_q2_eqn}
+\ELSIF{$m_{k,t}^{(l)} > 0$}
+\STATE Sample $\theta_{k,t}^{(l)} \sim P(\theta_{k,t}^{(l)} | \theta_{k,t-1}^{(l)})$  \hfill $\triangleright$ eqs.~\eqref{transker1} $\&$ \eqref{transker2}
+\ENDIF
+\IF{$s=S$}
+\STATE Sample $m_{k,t+1}^{(l)} \sim \text{D}(m_{k,t}^{(l)}, c_{1:N_{t}, t}^{(l)}, \rho)$  \hfill $\triangleright$ eq.~\eqref{del_step}
+\ENDIF
+\ENDFOR
+\ENDFOR
+\STATE $\tilde{w}_{t}^{(l)} \leftarrow w_{t-1}^{(l)} \times \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})} {P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) } \times r $  \hfill $\triangleright$ eq.~\eqref{smc_weight_eqn}
+\ENDFOR
+\FOR {l = 1 : L}
+\STATE $w_{t}^{(l)} \leftarrow \frac{\tilde{w}_{t}^{(l)}}{\sum_{l=1}^{L} \tilde{w}_{t}^{(l)} }$   \hfill $\triangleright$ normalize weights
+\ENDFOR
+\STATE Resample particles $1, \ldots, L$ and weights $w_{t}^{(1)}, \ldots, w_{t}^{(L)}$   \hfill $\triangleright$ Section~\ref{sec:resample}
+\ENDFOR
+\end{algorithmic}
+\end{algorithm*}
+
+
+\subsubsection{Proposal Distribution for Assignments $c_{i,t}$}
+\label{sec:smc_proposal_1}
+
+The probability of assignments given current cluster sizes, cluster parameters, and the Dirichlet Process concentration parameter $\alpha$ can be written as
+\begin{equation}
+\label{smc_assig_eqn}
+\begin{split}
+P \left( c_{i,t} | m_{1:K_{t}, t}, \theta_{1:K_{t}, t}, \alpha \right) &\propto
+\text{C}(m_{1:K_{t}, t}, \alpha) \\ &\times
+\begin{cases}
+F(\bold{x}_{i,t} | \theta_{c_{i,t},t}) \hspace{2mm} \text{if} \hspace{2mm} k \leq K_{t-1} \\
+\int P(\bold{x}_{i,t} | \theta) \mathbb{G}_{0}(\theta)d\theta \hspace{2mm} k > K_{t-1}
+\end{cases}
+\end{split}
+\end{equation}
+where C is defined in \eqref{C_distro}, and the integral \\
+$\int P(\bold{x}_{i,t} | \theta) \mathbb{G}_{0}(\theta)d\theta$ can be determined analytically, and is given in \eqref{marginal_obs_prob}.
+
+
+\subsubsection{Proposal Distribution $q_{1}$}
+\label{sec:smc_proposal_2}
+
+The following is a distribution over cluster parameters $\theta_{k,t}$ given a set of $N$ observations $\bold{x}_{1:N, t}$. We define $q_{1}$ to be
+\begin{equation}
+\label{smc_q1_eqn}
+q_{1}(\theta_{k,t} | \bold{x}_{1:N,t}) = P(\theta_{k,t} | \bold{x}_{1:N,t})
+\end{equation}
+where samples can be drawn from $P(\theta_{k,t} | \bold{x}_{1:N,t})$ using the bayesian updates found in \eqref{bayesian_update_1}, \eqref{bayesian_update_2}, \eqref{bayesian_update_3}, and \eqref{bayesian_update_4}, where the $\bold{x}_{1:N,t}$ are taken to be the observations.
+
+
+\subsubsection{Proposal Distribution $q_{2}$}
+\label{sec:smc_proposal_3}
+
+The following is a distribution over cluster parameters $\theta_{k,t}$ given a set of $N$ observations $\bold{x}_{1:N, t}$ and the cluster parameters at a previous time, $\theta_{k,t-1}$. We define $q_{2}$ to be
+\begin{equation}
+\label{smc_q2_eqn}
+q_{2}(\theta_{k,t} | \theta_{k,t-1},\bold{x}_{1:N,t}) = P(\theta_{k,t} | \theta_{k,t-1} \bold{x}_{1:N,t})
+\end{equation}
+where samples can be drawn from $P(\theta_{k,t} | \theta_{k,t-1} \bold{x}_{1:N,t})$ using the bayesian updates found in \eqref{bayesian_update_1}, \eqref{bayesian_update_2}, \eqref{bayesian_update_3}, and \eqref{bayesian_update_4}, where both the $\bold{x}_{1:N,t}$ and auxiliary variables $z_{k,t,1:M}$ are taken to be the observations.
+
+
+\subsection{Calculation of particle weights $\tilde{w}_{t}^{(l)}$}
+In Algorithm~\ref{alg:SMC}, the weight $\tilde{w}_{t}^{(l)}$ of each particle $l \in \{ 1. \ldots, L \}$ at time $t$ is given in terms of the particle's weight at time $t-1$ by the equation
+\begin{equation}
+\tilde{w}_{t}^{(l)} \leftarrow w_{t-1}^{(l)} \times \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})} {P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) } \times r
+\end{equation}
+where $r$ denotes the computed ratio for the particle (defined in Algorithm~\ref{alg:SMC}), and we define
+\begin{equation}
+\label{smc_weight_eqn}
+\begin{split}
+& \frac{ P(\bold{x}_{1:N_{t},t}, c_{1:N_{t}, t}^{(l)} | \theta_{1:K_{t}^{(l)}}, m_{1:K_{t},t}^{(l)})} {P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t} ) }  \\
+& = \frac{P(\bold{x}_{1:N_{t},t} | \theta_{1:K_{t}^{(l)}}) P(c_{1:N_{t}, t}^{(l)} | m_{1:K_{t},t}^{(l)}) )}{P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t})}
+\end{split}
+\end{equation}
+where $P(\bold{x}_{1:N_{t},t} | \theta_{1:K_{t}^{(l)}})$ is defined by \eqref{likelihood}, $P(c_{1:N_{t}, t}^{(l)} | m_{1:K_{t},t}^{(l)}))$ is defined by \eqref{C_distro}, and $P(c_{1:N_{t}, t}^{(l)} | m_{t}^{(l)}, \theta_{t-1}^{(l)}, \bold{x}_{1:N_{t},t})$ is defined by \eqref{mcmc_assig_vars}.
+
+%%%%%
+% need to complete this equation
+%%%%%
+
+
+\subsection{Resampling Particles and Particle Weights}
+\label{sec:resample}
+
+At each time step $t \in \{ 1, \ldots, T \}$, after all of the $L$ particles have been sampled and their associated weights computed, a resampling step is carried out. In this step, $L$ new particles are sampled from current set of $L$ particles. We will describe a specific, simple method known as Multinomial Resampling. In this method of resampling, we draw
+\begin{equation}
+\Upsilon \sim \mathcal{M}n((w_{t}^{(1)}, \ldots, w_{t}^{(L)}))
+\end{equation}
+where $\mathcal{M}n$ denotes the multinomial distribution, and $\Upsilon$ represents a vector of counts showing the multiplicity of each of the old particles in the new particle set (i.e. $\Upsilon_{i}$ denotes how many times particle $i$ is duplicated in the new particle set). More sophisticated resampling strategies are described for the SMC algorithm in \cite{gasthaus_thesis} and \cite{douc2005comparison}.
+
+
+\subsection{From Inference to Tracking Results}
+\label{sec:inferencetotrackingresults}
+
+The multivariate normal-multinomial model on which inference is described in this section can be used to gain object detection and tracking results. The nature of object detection and tracking results may vary depending on the application or performance metrics used (see Section~\ref{sec:performanceevaluationmetrics}); in this study, we desire the centroid position and approximate spatial region for each moving object, for each frame that this object can be seen within the video. We choose to make our detection and tracking results depend completely on the inferred parameters of the multivariate normal distribution of each cluster. Each inferred cluster was taken to be a distinct detected object, and the sequence of means and covariance matrices for a given cluster were used, respectively, to determine the position and spatial region of a given object over a sequence of time steps. In particular, the mean parameter was taken to be the centroid of an object, and a 2-dimensional oval denoting a boundary around the mean that contains a specified percentage of the data (where the specification for this oval is given in Section~\ref{sec:pets2000and2001}) was taken to be the spatial region of the object. Furthermore, as both provided inference methods use sampling, and each sample represents a result, we must choose a way to narrow these down to a single result. We have found that calculating the joint log probability for each sample and choosing the sample that yields the highest value as a result works reasonably well.
+
+
+
+% Experiments
+% -----------
+
+\section{Experiments}
+\label{sec:experiments}
+
+This section provides details on performance evaluation metrics that have been developed to quantify results in object detection and tracking studies (and adopted in this paper), synthetic video experiments that verify certain aspects of the developed technique, benchmark video experiments that demonstrate the performance of this technique in relation to other methods developed in recent years, and new video experiments to show the capability of this technique to perform unsupervised detection and tracking on a range of object and video types.   
+
+
+\subsection{Performance Evaluation Metrics}
+\label{sec:performanceevaluationmetrics}
+
+Performance evaluation metrics, which intend to provide a standardized way of quantifying the success of a detection and tracking procedure on a given video, have started to become well studied and consistently used in the past four years. The metrics developed in \cite{kasturi_2008} and used in \cite{ellis_2010, taj_2007, lee_2009} have become well established metrics for evaluating the performance of object detection and tracking in videos and have been adopted by the Video Analysis and Content Extraction (VACE) program and the Classification of Events, Activities, and Relationships (CLEAR) consortium, two large-scale efforts concerned with video tracking and interaction analysis. These metrics are used to quantify the experimental results in this study.
+
+The above metrics are dependent upon ground-truth data specifying the positions of each object in each frame throughout a video sequence. In the experiments described below, we gained the synthetic video ground-truth during construction of the videos (described in Section~\ref{sec:syntheticvideos}), and we used the Video Performance Evaluation Resource (ViPER) ground-truth software \cite{doermann_2000}, an open source tool commonly used in the video tracking community, to author ground-truth data for each of the benchmark datasets.
+
+
+\subsubsection{Mapping Ground-Truth to Output}
+\label{sec:mappingtoground}
+
+The problem of finding a mapping between a video's ground-truth tracks and an algorithm's output tracks is nontrivial, though necesary to solve, in order to compute the performance evaluation metrics used in this study. In short, the typical solution to this problem involves first specifying a performance metric and then choosing the mapping from ground-truth tracks to output tracks which yields the most favorable performance metric value. This process is described in detail by Kasturi et al. \cite{kasturi_2008}; we follow the method outlined in this paper to find an optimal mapping. Similiar to descriptions in \cite{kasturi_2008}, we implement the Hungarian algorithm \cite{munkres_1957} as a polynomial-time ($O(n^{3})$) solution to the problem of optimally mapping two sets of tracks once the similarity between any two tracks given some specified metric is established. Additionally, the method employed in \cite{kasturi_2008} allows erroneous and undetected tracks to be left unmapped, which is both desired and necessary in the case where there is a different number of ground-truth and output tracks. Note that once a mapping from a collection of ground-truth tracks to a collection of result tracks has been established, one can determine which result tracks are false positives (the result tracks to which no ground-truth track is assigned) and which ground-truth tracks are true negatives (the ground-truth tracks that are not assigned to a result track). The numbers of tracks displaying both of these failures are factors in the performance metrics used in this study.
+
+
+\subsubsection{SFDA and ATA}
+
+The two metrics used to quantify performance in this study are known as the the Sequence Frame Detection Accuracy (SFDA) and the Average Tracking Accuracy (ATA). These metrics were developed during VACE Phase II to provide a single, comprehensive metric to describe detection, and one to describe tracking. The following are used in the definitions of the performance metrics:
+\begin{itemize}
+\renewcommand{\labelitemi}{$\bullet$}
+\item $G_{i}$ denotes the spatiotemporal region occupied by the $i$th ground-truth object in a video, and $G_{i}^{(t)}$ denotes the region occupied by the $i$th ground-truth object in frame $t$.
+\vspace{2mm}
+\item $D_{i}$ denotes the spatiotemporal region occupied by the $i$th detected object in a video, and $D_{i}^{(t)}$ denotes the region occupied by the $i$th detected object in frame $t$.
+\vspace{2mm}
+\item $N_{G}$ denotes the total number of unique ground-truth objects in a video, and $N_{G}^{(t)}$ denotes the number of unique ground-truth objects present at frame $t$.
+\vspace{2mm}
+\item $N_{D}$ denotes the total number of unique detected objects in a video, and $N_{D}^{(t)}$ denotes the number of unique detected objects present at frame $t$.
+\vspace{2mm}
+\item $N_{\text{frames}}$ denotes the total number of frames in a video, and $N_{\text{frames}}^{(i)}$ denotes the number of frames in which an object $i$ (which can be a ground-truth or detected object, depending on the context) is present in a video.
+\vspace{2mm}
+\item $N_{\text{mapped}}$ denotes the number of mapped ground-truth/detect pairs in a video, and $N_{\text{mapped}}^{(t)}$ denotes the number of mapped ground-truth/detect pairs present at frame $t$.
+\vspace{1mm}
+\end{itemize}
+
+The SFDA metric quantifies the performance of an object detection algorithm as a function of the number of correct detects, false positive detects, missed (true negative) detects, and spatial allignment of detects relative to the ground-truth. The SFDA is calculated by computing the Frame Detection Accuracy at frame $t$ ($\text{FDA}^{(t)}$) for each frame in a video sequence. The FDA provides a measure of the allignment between ground-truth and detected objects in a given frame via the overlap ratio of a ground-truth/detect pair, defined to be the ratio of the intersection of ground-truth and detect regions to the union of ground-truth and detect regions. Formally, we can write
+\begin{equation}
+\text{FDA}^{(t)} = \frac{\text{Overlap Ratio}}{\left(\frac{N_{G}^{(t)} + N_{D}^{(t)}}{2}\right)}
+\end{equation}
+where
+\begin{equation}
+\text{Overlap Ratio} = \sum_{i = 1}^{N_{\text{mapped}}^{(t)}} \frac{\left|G_{i}^{(t)} \cap D_{i}^{(t)}\right|}{\left|G_{i}^{(t)} \cup D_{i}^{(t)}\right|}
+\end{equation}
+The term $N_{\text{mapped}}^{(t)}$ refers to an optimal mapping between ground-truth and detects at frame $t$ as specified in section \ref{sec:mappingtoground} using the $\text{FDA}^{(t)}$ as the relevant metric. Given the $\text{FDA}^{(t)}$ at each frame, the SFDA can be computed; this metric may be viewed as the average FDA over all frames of a video sequence. We define
+\begin{equation}
+\text{SFDA} = \frac{\sum_{t=1}^{N_{\text{frames}}} \text{FDA}^{(t)}}{\sum_{t=1}^{N_{\text{frames}}} \exists \left( N_{G}^{(t)} \vee N_{D}^{(t)} \right)}
+\end{equation}
+where $\exists \left( N_{G}^{(t)} \vee N_{D}^{(t)} \right)$ yields a 1 if either a detected or ground-truth object is present in frame $t$ and a 0 otherwise.
+
+The ATA metric quantifies the performance of an object tracking algorithm as a function of the spatial overlap of a mapped set of sequences of detected object positions to a set of sequences of groundtruth object positions. The ATA is calculated by first computing the Sequence Track Detection Accuracy (STDA), which can be viewed as a tracking performance measure unnormalied in terms of the number of objects. We can write the STDA as
+\begin{equation}
+\text{STDA} = \sum_{i=1}^{N_{\text{mapped}}} \frac{\sum_{t=1}^{N_{\text{frames}}} \left( \frac{\left|G_{i}^{(t)} \cap D_{i}^{(t)}\right|}{\left|G_{i}^{(t)} \cup D_{i}^{(t)}\right|}  \right) }{ N_{(G_{i} \cup D_{i} \neq \emptyset)} }
+\end{equation}
+where $N_{\text{mapped}}$ refers to an optimal mapping between ground-truth and detected objects as specified in section \ref{sec:mappingtoground} using the STDA as the relevant metric, and $N_{(G_{i} \cup D_{i} \neq \emptyset)}$ denotes the number of frames in which a given tracked object, the ground truth object to which it is mapped, or both, are present.
+
+Given the STDA for a video sequence, the ATA can be computed by the formula
+\begin{equation}
+\text{ATA} = \frac{\text{STDA}}{\left( \frac{N_{G} + N_{D}}{2} \right)}
+\end{equation}
+
+The ground-truth authored by the ViPER tool took the form of bounding boxes denoting the spatial postion of each object at each time step. Consequentially, to find the spatial overlap between results and ground-truth, which is intrinsic to both metrics, a rectangular bounding box was needed per object per time step from the results of the algorithm. We took the maximal and minimal axially aligned values of the oval produced by our algorithm (as described in Section~\ref{sec:inferencetotrackingresults}) to be the sides of a representative bounding box for a given object at a given frame.
+
+
+
+\subsection{Synthetic Video Datasets}
+\label{sec:syntheticvideodatasets}
+
+%%%%%
+% I still need to include performance metric results for these synthetic datasets...maybe
+%%%%%
+\begin{figure*}[!]
+  \centering               
+  \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth1_cross.pdf}} \hspace{0.5mm}
+  \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth1_bounce.pdf}} \hspace{0.5mm}
+  \subfloat[]{\includegraphics[width=0.32\textwidth]{../img/synth4.pdf}}
+  \caption{Each plot shows a sample from the posterior distribution of the model for synthetic experiments one (a and b) and two (c), where the vertical axis represents frame number, the horizontal axes represent spatial position, objects are denoted by marker colors and marker types, and the mean and standard deviation are shown. In all cases, the objects are successfully tracked through occlusion, whether they travel in a straight line (a), reverse direction (b), or do a combination of both (c).}
+  \label{fig:synth_one_plot}
+\end{figure*}
+
+Synthetic videos provide controlled scenarios in which aspects of the technique presented in this paper can be tested. Each of the following synthetic videos consists of a sequence of 200 images (each of size $500$ x $500$ pixels) containing a number of smaller colored squares of different (and potentially time-varying) sizes moving at varied speeds and trajectories over a black background. The synthetic videos contain instances of occlusion (where one or more objects are briefly hidden) and objects with time-varying appearances and behaviors, as these are examples of occurances that notoriously decrease the accuracy of detection and tracking. After each video was constructed, the extraction procedure described in Section~\ref{sec:dataextraction} (using $L=3$) and inference procedures described in \ref{sec:inference} were carried out to return a sequence of multivariate-normal-parameters (means and covariance matrices) from which a sequence of positions and ovals approximating the shape of a tracked object over each frame that it is present in the video can be determined (as outlined in Section~\ref{sec:inferencetotrackingresults}).
+
+The first synthetic video experiment aimed to test the ability of the model and inference procedure to maintain the identity of independent objects based on color information alone. Two videos were constructed, both containing a red square (rgb value $[255,0,0]$ and size $20$ x $20$ pixels) and a blue square (rgb value $[0,0,255]$ and size $20$ x $20$ pixels). In both videos, the squares begin at opposite sides of the scene at frame $f=1$ and travel towards each other, arriving at the same location at $f=100$ (where the blue square occludes the red square). The second half of the two videos differ in that both squares in the first video continue in the same direction and end at the other's starting positions at $f=200$, and both squares in the second video reverse directions and end at their initial starting positions at $f=200$. The frame difference extraction yields identical spatial features in both videos; hence, successful tracking depends fully on the incorporation of color information into the model.
+
+Parameters were set to the same values for inference on both videos, using the method outlined in Section~\ref{sec:parameter_recap} to choose parameters. The chosen values were $\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$. Inference was carried out using the MCMC algorithm (Section~\ref{sec:MCMC}); the posterior sample taken as the result correctly tracked both colored squares through occlusion in both videos, and is shown in Figure~\ref{fig:synth_one_plot}. 
+
+The second synthetic video experiment aimed to test tracking performance under occlusion, object appearance change, and motion change. A video was constructed, containing a red square (rgb value $[255,0,0]$), a green square (rgb value $[0,255,0]$), and a blue square (rgb value $[0,0,255]$). The red square was of size $20$ x $20$ pixels, the blue square was of size $15$ x $15$ pixels, and the green square began at size $50$ x $50$ pixels at frame $f=1$, linearly shrinks to $10$ x $10$ pixels at $f=100$, then linearly grows back to $50$ x $50$ pixels by the end of the video, $f=200$. Furthermore, the red and blue squares display the same behavior as in the second video of the first synthetic experiment (they begin at opposite sides of the scene traveling towards each other, cross at the center of the scene at $f=100$, and reverse direction, ending at their initial positions at $f=200$). The green square begins at a point equidistant from the other two squares, intersects with them as they overlap (causing the blue square to occlude the other two), and continues on in a direction at a 20 degree angle from its initial trajectory.
+
+Parameter values were chosen in the same way, and set to the same values, as the first synthetic experiment. The MCMC inference algorithm correctly tracked all three objects through occlusion and inferred the appearance and size shifts. Figure~\ref{fig:synth_one_plot} shows a sample from the posterior distribution of the cluster parameters, where the mean and oval representation of the covariance matrix (with $0.5$ confidence value) are overlayed on the data. The data is plotted in three dimensional space, where time is represented on the vertical axis, and the assignment of each data point to one of the three inferred clusters is denoted by color and marker type. 
+
+
+\subsection{Benchmark Video Datasets}
+\label{sec:benchmarkvideodatasets}
+
+Benchmark video datasets for object tracking and detection have been produced to provide standard scenes on which researchers can compare detection and tracking results. These videos have been primarily produced for surveillance-related workshops---notably, for the International Workshop on Performance Evaluation of Tracking and Surveillance (PETS)--which provide researchers with video datasets and algorithmic goals on which to focus. Three commonly used benchmark videos from PETS workshops---one used in PETS2000, one in PETS2001, and one used both in PETS2009 and PETS2010---were chosen to demonstrate the efficacy of the method presented in this study. The performance metrics and benchmark datasets allow the methods developed in this paper to be quantitatively compared against other detection and tracking algorithms.
+
+
+\subsubsection{PETS2000 and PETS2001}
+\label{sec:pets2000and2001}
+
+The PETS2000 and PETS2001 video datasets both consist of a small number of humans and vehicles traveling across a parking lot, with video taken from above, emulating what might be recorded by standard outdoor surveillance equipment. The `Test Sequence', a set of images from a monocular, stationary camera, was used from the PETS2000 workshop, and View Two of Dataset 1, also taken via a monocular, stationary camera, was used from the PETS2001 workshop. The MCMC algorithm (described in Section~\ref{sec:MCMC}) was used for inference in these experiments.
+
+Due to the computation required for the MCMC batch inference method (discussed further in Section~\ref{sec:discussion}), only the final 1000 frames of the video were used from both datasets. Extraction was performed with frame differencing as described in Section~\ref{sec:dataextraction}, using $L=3$. Parameter values were chosen in the same way, and set to the same values, as in the the synthetic experiments ($\alpha = 0.1, \rho = 0.3, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 5, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (5, \ldots, 5)$). The MCMC sampler was successful for both benchmark videos; each object was detected, tracked, and its shape estimated in manner very consistent with the ground-truth. The results for the PETS2000 dataset are displayed in Figure~\ref{fig:pets2000_results} and for the PETS2001 dataset in Figure~\ref{fig:pets2001_results}; in these figures, a sample from the posterior distribution of the cluster parameters is overlayed on the extracted data over a sequence of frames, where the assignment of each data point is represented by color and marker type.
+
+\begin{figure*}[!]
+  \centering
+  \subfloat[]{\label{fig:pets2000_results} \includegraphics[width=0.48\textwidth]{../img/pets2000_front.pdf}} \hspace{1mm}           
+  \subfloat[]{\label{fig:pets2001_results} \includegraphics[width=0.48\textwidth]{../img/pets2001_back.pdf}}
+  \caption{PETS2000 dataset results (a) and PETS2001 dataset results (b). Both plots show a sample from the posterior distribution of the state, where the vertical axis denotes time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown.}
+  \label{fig:benchmark_results_1}
+\end{figure*}
+
+\begin{figure*}[!]
+  \centering             
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f1}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f4}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f9}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2000_f11}}
+  \caption{Four frames from the PETS2000 sequence with one posterior sample mean and covariance matrix representation shown for each frame (and for the previous 20 frames).}
+  \label{fig:pets2001_imgs}
+\end{figure*}
+
+\begin{figure*}[!]
+  \centering               
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f1.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f3.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f5.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2001_f8.pdf}}
+  \caption{Four frames from the PETS2001 sequence with one posterior sample mean and covariance matrix representation shown for each frame (and for the previous 20 frames).}
+  \label{fig:pets2001_overlay}
+\end{figure*}
+
+To calculate performance metrics (both SFDA and ATA), one must specify a confidence value that allows the oval representing the region occupied by an object to be computed from the inferred covariance matrix of each cluster (as discussed in Section~\ref{sec:inferencetotrackingresults}). The performance metrics were found for a range of confidence intervals, and these curves, for the PETS2000 and PETS2001 video are shown in Figure~\ref{fig:pm_conf}.
+
+\begin{figure*}[!]
+  \centering             
+  \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2000_pm.pdf}} \hspace{1mm}
+  \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2001_pm.pdf}}
+  \caption{The SFDA (blue solid line) and ATA (red dashed line are) vs  confidence values from which an object's oval region is computed for (a) PETS2000 and (b) PETS2001 video datasets.}
+  \label{fig:pm_conf}
+\end{figure*}
+
+
+\subsubsection{PETS2009/2010}
+\label{sec:pets20092010}
+
+A video dataset used in both the PETS2009 and PETS2010 conferences, called ``S2.L1 at time sequence 12.34'' was chosen for experimentation due to its prominence in a number of studies \cite{ellis_2010}.
+%%%%%
+% cite other papers that use this dataset?
+%%%%%
+This dataset consists of a monocular, stationary camera, 794 frame video sequence. The entire video sequence was used in this experiment. 
+
+Due to the large number of frames and objects in this video, the SMC algorithm (described in Section~\ref{sec:SMC}) was used for inference. This method of sequential inference was observed, on this dataset, to converge to a better sample in a shorter period of time in comparison with the MCMC algorithm; for this reason, we found that it was better suited for this large dataset.
+
+Extraction was performed with frame differencing as described in Section~\ref{sec:dataextraction}, using $L=3$ and parameters for the model were chosen, using the method outlined in Section~\ref{sec:recapofparameters}, to be $\alpha = 0.1, \rho = 0.8, M = 10, \boldsymbol{\mu}_{0} = (0,0), \kappa_{0} = 0.05, \nu_{0} = 6, \Lambda_{0} = \left( \begin{smallmatrix} 1&0\\ 0&1 \end{smallmatrix} \right), \text{ and } q_{0} = (3, \ldots, 3)$. Additionally, as with the other video datasets, ground-truth bounding boxes around each object were authored using the ViPER tool.
+
+The SMC inference algorithm yielded a sample from the posterior distribution of the model, from which the object detection and tracking results were obtained (as described in Section~\ref{sec:inferencetotrackingresults}). In Figure \ref{fig:pets2009_results}, a sample from the posterior distribution over the cluster parameters is overlayed on the extracted data over a sequence of frames, where the assignment of each data point is represented by color and marker type.
+
+\begin{figure*}[!]
+  \centering
+  \subfloat[]{\includegraphics[width=0.43\textwidth]{../img/pets2009_1-50_front.pdf}}
+  \hspace{4mm}
+  \subfloat[]{\includegraphics[width=0.53\textwidth]{../img/pets2009full_pm_b.pdf}}
+  \caption{ (a) Results for the PETS2009 dataset, showing a sample from the posterior distribution of the state for frames 1-50, where the vertical axis denotes time, the horizontal axes represent spatial position, color represents assignment, and the mean and standard deviation are shown. (b) performance metrics vs. covariance confidence interval threshold for tracking results showing the SFDA (blue solid line) and ATA (red dashed line).}
+  \label{fig:pets2009_results}
+\end{figure*}
+
+\begin{figure*}[!]
+  \centering               
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2009_f3.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2009_f6.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2009_f13.pdf}} \hspace{1pt}
+  \subfloat[]{\includegraphics[width=0.24\textwidth]{../img/pets2009_f14.pdf}}
+  \caption{Four frames from the PETS2009/2010 sequence with one posterior sample mean and covariance matrix representation shown for each frame (and for the previous 20 frames).}
+  \label{fig:pets2009_overlay}
+\end{figure*}
+
+In \cite{ellis_2010}, performance metrics were computed for a number of studies that carried out object detection and tracking for the PETS2009/2010 dataset. As this dataset consists solely of humans, many of these algorithms were developed for the specific purpose of people tracking (i.e. not for general detection and tracking of arbitrary objects); in consequence, many of these studies involve appearance models specifically developed for humans, sometimes making use of their orientation in this specific dataset, and motion models based on assumptions about human motion. We compare SFDA and ATA results of our strategy with these methods to show that our general method can yield comparable results even when compared with object-specific trackers. Figure~\ref{fig:sfda_and_ata_comparison} shows performance metric results for comparison (data published with permission from the authors of \cite{ellis_2010}).
+\begin{figure*}[!]
+  \centering
+  \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2009full_comp_sfda.pdf}}
+  \hspace{1mm}
+  \subfloat[]{\includegraphics[width=0.49\textwidth]{../img/pets2009full_comp_ata.pdf}}
+  \caption{Performance metric comparison showing the (a) SFDA and (b) ATA results for submissions to the PETS2009/PETS2010 workshops (blue bars) and for the technique introduced in this paper (red bars). These graphs show that the general technique in this paper yields comparable performance with state-of-the-art, object-specific detection and tracking strategies. Our results were computed using a covariance confidence interval threshold of 0.35.}
+  \label{fig:sfda_and_ata_comparison}
+\end{figure*}
+
+
+\subsubsection{Sensitivity Analysis}
+\label{sec:sensitivityanalysis}
+
+SMC inference on the PETS2009 video dataset was carried out for a range of two key parameter values, $\alpha$ and $\rho$. The performance metric measures, SFDA and ATA, were computed for each combination of these two parameters. This sensitivity investigation focused on these parameters due to their potential to have a large effect on object detection accuracies. The $\alpha$ values tested included $\{ 0.01, 0.1, 1, 10, 100 \}$, and the $\rho$ values tested included $\{ 0.7, 0.75, 0.8, 0.85, 0.9 \}$.
+
+% The following shows the SFDA sensitivity analysis results. The largest two values are shown in bold.
+% \begin{center}
+% \begin{tabular}[!]{l l  l  l  l  l  l}
+%   & & & $\hspace{8mm}\rho$ & & & \\
+%   SFDA  &   & $0.7$ & $0.75$ & $0.8$ & $0.85$ & $0.9$  \\  
+%   &$0.01$   & $0.4121$ & $0.4262$ & $0.4219$ & $\bold{0.4331}$ & $0.4277$  \\
+%   &$0.1$    & $\bold{0.4336}$ & $0.4184$ & $0.4200$ & $0.4316$ & $0.4321$  \\ 
+% $\alpha$  & $1$    & $0.4084$ & $0.4209$ & $0.4205$ & $0.4290$ & $0.4330$  \\  
+%   &$10$     & $0.3992$ & $0.4130$ & $0.4289$ & $0.4232$ & $0.4226$  \\  
+%   &$100$    & $0.3655$ & $0.3739$ & $0.3636$ & $0.3755$ & $0.3672$  \\
+% \end{tabular}
+% \end{center}
+
+% The following shows the ATA sensitivity analysis results. The largest two values are shown in bold.
+% \begin{center}
+% \begin{tabular}[!]{l l  l  l  l  l  l}
+%     & & & $\hspace{8mm}\rho$ & & & \\
+%    ATA  &     & $0.7$ & $0.75$ & $0.8$ & $0.85$ & $0.9$  \\  
+%     &$0.01$     & $0.2032$ & $0.2017$ & $0.2262$ & $0.1945$ & $0.1914$  \\
+%       &$0.1$  & $0.1964$ & $0.2042$ & $0.2401$ & $0.1990$ & $0.2017$  \\
+% $\alpha$ & $1$    & $0.2016$ & $0.2365$ & $0.2766$ & $0.2347$ & $0.2766$  \\   
+%       &$10$     & $0.2277$ & $0.2284$ & $0.2613$ & $\bold{0.2781}$ & $0.2732$  \\  
+%      &$100$   & $0.2468$ & $0.2645$ & $0.2725$ & $0.2670$ & $\bold{0.2843}$  \\
+% \end{tabular}
+% \end{center}
+
+Figure~\ref{fig:sens_surf} shows a surface plot of the sensitivity analysis results. From this figure, we can see that the SFDA and ATA achieve their maximal values at different $\alpha$ and $\rho$ parameters, though both achieve a reasonably optimal value at the intermediate parameter values $\alpha = 10$ and $\rho = 0.85$. We can also see that detection and tracking performance is fairly robust to minor variations in these parameter values.
+
+\begin{figure*}[!]
+  \centering             
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2009full_sens_sfda.png}}
+  \subfloat[]{\includegraphics[width=0.5\textwidth]{../img/pets2009full_sens_ata.png}}
+  \caption{Surface plot of the sensitivity performance metric tables}
+  \label{fig:sens_surf}
+\end{figure*}
+
+
+
+% Conclusion
+% ----------
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have presented a new technique for the unsupervised detection and tracking of arbitrary objects in videos. The primary intention of this technique is to reduce the need for detection or localization methods tailored to specific object types and serve as a general framework applicable to videos with varied objects, backgrounds, and film qualities. The GPUDDPM, a time-dependent Dirichlet process mixture, has been introduced, and we have shown how inference on this model allows for the desired clustering of extraction data. Furthermore, we have demonstrated a specific implementation of the model using spatial and color pixel data extracted via frame differencing and provided two algorithms for performing Bayesian inference on the model to accomplish detection and tracking. Both algorithms were carried out on multiple synthetic and benchmark multi-object video datasets in order to demonstrate an ability to accomplish unsupervised detection and tracking of arbitrary objects in both manufactured and real world settings. We have described and computed standard performance metrics for our technique's detection and tracking results, and found it to be comparable with state-of-the-art object-specific detection and tracking methods designed for people tracking in the PETS2009/2010 video dataset. Results from the synthetic and benchmark video datasets illustrate the ability of the technique described in this paper to, without modification, perform completely unsupervised detection and tracking of objects with diverse physical charactersitics moving over non-uniform backgrounds and through occlusion
+
+% More to include: more discussion of parameter choices, thoughts about deletion params vs. dataset size (and the tradeoff between tracking through occlusion vs clusters rapidly gaining size), mvn cluster size vs. tracking in occlusion vs. sampling correct number of objects. discuss how we detect movement, which isn’t exactly same as authors in the perf. metric paper (ie our tracking is designed to stop if people stop moving). objects hard to track through occlusion becuase they are small, similar appearance, and our algorithm doesn’t assume dynamics to keep robust (we could, probably for better accuracy but less generality). background (appearance) is like a natural prior 
+
+
+
+\begin{small}
+\bibliographystyle{plainnat}
+\bibliography{paper_refs} 
+\end{small}
+
+
+
+% Model Overview
+% --------------
+
+\appendix
+
+\section{Model Background}
+\label{sec:modelbackground}
+
+Dirichlet Process Mixture (DPM) models (Section~\ref{sec:dpmixture}) fall under the heading of Bayesian nonparametric (BNP) models. These models have been widely used in the past decade to perform nonparametric density estimation and cluster analysis. Since we have time series data and wish to find spatiotemporal clusters, we are interested in using a closely related class of models known as Dependent Dirichlet Process Mixture (DDPM) models (Section~\ref{sec:ddpmixture}). These models are particularly useful for estimating the number of latent classes (clusters) in time dependent data. In this work, estimating the number of clusters in video extraction data is equivalent to estimating the number of distinct objects in a video.
+
+This section provides background information that allows us to introduce DDPM models, describes the motivation behind our use of these models, and gives a definition of the particular DDPM chosen, known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM) model (Section~\ref{sec:gpuddpmixture}).
+
+
+\subsection{Finite Mixture Model}
+\label{sec:finitemixture}
+
+A finite mixture model can be thought of as a probability distribution for an observation $x_{i}$ formulated as a linear combination of K mixture components (which we also refer to as `clusters'), where each mixture component is a probability distribution for $x_{i}$ with some parametric form, and the coefficients of the linear combination sum to one. The finite mixture model can be written as
+\begin{equation}
+P(x_{i}) = \sum_{k=1}^{K} P(c_{i} = k)P(x_{i}|\theta_{k})
+\end{equation}
+$\forall i \in \{ 1, \ldots, N \}$, where $c_{i} \in \{ 1, \ldots, K \}$ denotes the assignment of $x_{i}$ to a given mixture and $\theta_{k}$ denotes the parameters of the $k^{\text{th}}$ mixture component. Note that by choosing $P(c_{i} = k)$ as coefficients of the linear combination, it is ensured that these coefficients sum to one. We also define $p_{k} := P(c_{i} = k)$ for $k \in \{ 1, \ldots, K \} $. We can therefore write this model generatively as
+\begin{align}
+\begin{split}
+  c_{i}|p_{1}, \ldots, p_{K}  &\sim  \text{Discrete}(p_{1}, \ldots, p_{K}) \\
+  x_{i}|c_{i}, \theta_{c_{i}}  &\sim  \text{F}(\theta_{c_{i}})
+\end{split}
+\end{align}
+$\forall i \in \{ 1, \ldots, N \}$, where the $x_{i}$ are observations, the $c_{i}$ are the mixture component assignments associated with each observation, the $\theta_{c_{i}}$ are parameters defining the $c_{i}^{\text{th}}$ mixture component (i.e. the distribution to be mixed, $\text{F}(\theta_{c_{i}})$), and the ``Discrete'' distribution refers to a multinomial distribution whose parameters are a 1-of-K vector (i.e. a vector of counts that sums to one).
+
+
+\subsection{Bayesian (Finite) Mixture Model}
+\label{sec:bayesianmixture}
+
+The finite mixture model of Section~\ref{sec:finitemixture} can be extended to a Bayesian mixture model by viewing parameters that were previously point values, $\theta_{c_{i}}$ (the mixture component parameters) and $p_{1}, \ldots, p_{K}$ (the mixture component assignment weights), as random variables and providing each with a prior distribution. In this case, the prior distribution $\mathbb{G}_{0}$ is placed on the mixture component parameters, and the prior distribution $\text{Dir}(\alpha/K, \ldots, \alpha/K)$ is placed on the mixture component assignment weights. The resulting Bayesian mixture model can be formulated generatively as
+\begin{align}
+\begin{split}
+\label{bayesian_mixture_model}
+  p_{1}, \ldots, p_{K}  &\sim  \text{Dir}(\alpha/K, \ldots, \alpha/K)\\
+  \theta_{1}, \ldots, \theta_{K}  &\sim  \mathbb{G}_{0} \\
+  % \theta_{k}  &\sim  \mathbb{G}_{0}, \hspace{2mm} \forall k \in \{1, \ldots, K\} \\
+  c_{i}|p_{1}, \ldots, p_{K}  &\sim  \text{Discrete}(p_{1}, \ldots, p_{K}) \\
+  x_{i}|c_{i}, \theta_{c_{i}}  &\sim  \text{F}(\theta_{c_{i}})
+\end{split}
+\end{align}
+$\forall i \in \{ 1, \ldots, N \}$, where the $x_{i}$ are observations, the $c_{i}$ are the mixture component assignments associated with each observation, the $\theta_{k}$ are parameters defining the $k^{\text{th}}$ mixture component (i.e. the distribution to be mixed, $\text{F}(\theta_{k})$), the $\theta_{k}$ are drawn from a prior distribution $\mathbb{G}_{0}$, and $p_{1}, \ldots, p_{K}$ are drawn from a Dirichlet prior parameterized by $\alpha/K, \ldots, \alpha/K$.
+
+
+\subsection{Dirichlet Process}
+\label{sec:dirichletprocess}
+
+The Dirichlet process (DP), first introduced by \cite{ferguson_1973} in 1973, may be intuitively viewed as a probability distribution over discrete probability distributions. Accordingly, draws from a DP are probability mass functions (PMFs). A DP is parameterized by a base distribution $\mathbb{G}_{0}$, which is a probability distribution over a set $\Theta$, and a concentration parameter $\alpha \in \mathbb{R}_{+}$. We say that $G$ is a random PMF distributed according to a DP, written $G \sim \text{DP}(\alpha, \mathbb{G}_{0})$, if the following holds for all finite partitions $A_{1}, \ldots, A_{p}$ of $\Theta$:
+\begin{equation}
+(G(A_{1}), \ldots, G(A_{p})) \sim \text{Dir}(\alpha \mathbb{G}_{0}(A_{1}), \ldots, \alpha \mathbb{G}_{0}(A_{p}))
+\end{equation}
+Where `Dir' denotes a Dirichlet distribution. The parameters $\mathbb{G}_{0}$ and $\alpha$ may be intuitively viewed as the mean and precision of the DP. This is due to the fact that if the base distribution $\mathbb{G}_{0}$ is a distribution over $\Theta$, $A \subset \Theta$, and $G \sim \text{DP}(\alpha, \mathbb{G}_{0})$, then the following holds:
+\begin{equation}
+\mathbb{E}[G(A)] = \mathbb{G}_{0}(A)
+\end{equation}
+\begin{equation}
+\text{Var}[G(A)] = \mathbb{G}_{0}(A) (1 - \mathbb{G}_{0}(A)) / (\alpha + 1)
+\end{equation}
+Hence, the expectation of $G(A)$ is $\mathbb{G}_{0}$, the variance of $G(A) \rightarrow 0$ as $\alpha \rightarrow \infty$, and $G$ converges pointwise to $\mathbb{G}_{0}$ when $\alpha$ is unbounded.
+
+
+\subsection{Dirichlet Process (Infinite) Mixture Model}
+\label{sec:dpmixture}
+
+A DPM model, also refered to as an infinite mixture model, is an extension of the Bayesian mixture model described in Section~\ref{sec:bayesianmixture}. When using a DP as a prior in a Bayesian mixture model, $\Theta$ represents the set of parameters of the component mixture distributions. A DPM may be viewed as allowing the prior distribution over the mixture component parameters in a standard mixture model to be distributed according to a DP; this allows for modeling data where the true number of latent mixture components is unknown and arbitrarily large by letting the number of components remain unbounded (note that only a finite number of these components are assigned to the data). In particular, the DPM can be defined generatively as
+\begin{align}
+\begin{split}
+  \mathbb{G} | \alpha, \mathbb{G}_{0}  &\sim  \text{DP}(\alpha, \mathbb{G}_{0}) \\
+  \phi_{i} | \mathbb{G}  &\sim  \mathbb{G} \\
+  x_{i}|\phi_{i} &\sim \text{F}(\phi_{i})
+\end{split}
+\end{align}
+$\forall i \in \{ 1, \ldots, N \}$, where the $x_{i}$ are observations, the $\phi_{i}$ are parameters defining the mixture component from which the $i_{th}$ observation is drawn (i.e. the distribution to be mixed, $\text{F}(\phi_{i})$), and the $\phi_{i}$ are drawn from a prior distribution $\mathbb{G}$, which is in turn drawn from a DP with base distribution $\mathbb{G}_{0}$ and parameter $\alpha$. See \cite{gasthaus_2008} and \cite{gasthaus_thesis} for more details on this formulation. Note the difference between the indexing of the clusters in this model and the indexing in the previous two models. This formulation can be shown to be equivalent to the Bayesian mixture model defined in \eqref{bayesian_mixture_model}, when $K$ is taken to be unbounded; as a result, this model is sometimes called an infinite mixture model. If we let $K$ be the number of distinct mixture components assigned to observations using the above model, we can write the mixture components as $\theta_{1}, \ldots, \theta_{K}$. We also let $c_{1}, \ldots, c_{N}$ (where $c_{i} \in \{1, \ldots, K \}$) be class assignment variables that indicate the cluster to which observation $x_{i}$ is assigned.
+
+
+\subsection{Dependent Dirichlet Process Mixture Model}
+\label{sec:ddpmixture}
+
+The goal of DDPM models is to allow modeling of data that is not independent and identically distributed but instead has some underlying dependencies. For example, data generated during video extraction procedures have some associated temporal dependencies, since there exist similarities between features (such as those that encode the spatial positions or appearances of objects) of data at nearby time steps.
+
+To account for the dependent behavior of data, there has been research into models involving a sequence of DPMs, where components of the mixtures are dependent upon (or are sometimes said to be ``tied to'') corresponding components at neighboring positions in the sequence. For example, if the data shows temporal dependence, the goal might be to create a sequence of DPMs, one for each time-step, where the components of the mixture at each step are dependent upon corresponding components in the both the following and previous time steps.
+
+More rigorously, we take the definition of a DDPM to be a stochastic process defined on the space of probability distributions over a domain, which are indexed by time, space, or a selection of other covariates in such a way that the marginal distribution at any point in the domain follows a Dirichlet process (adapted from definitions found in \cite{gasthaus_thesis} and \cite{griffin2006order}). Hence, a time-dependent DDPM is a model which remains a Dirichlet process, marginally, at each time step, yet allows cluster parameters at a given time step to vary from (and remain dependent upon) the parameters in neighboring time steps.
+
+
+% \subsection{Generalized Polya Urn Dependent Dirichlet Process Mixture Model}
+% \label{sec:gpuddpmixture}
+
+% The time dependent video extraction data contains a collection of clusters, each representing a video object, which might change in number as time progresses (which is to say, clusters may be created, or be ``born'', and may disappear, or ``die'', at some intermediate time step), since objects can enter and exit a scene. To handle these challenges, the specific DDPM chosen to model extraction data in this work is known as the Generalized Polya Urn Dependent Dirichlet Process Mixture (GPUDDPM), introduced by \cite{caron_2007} in 2006.
+
+% The GPUDDPM, when applied to data extracted from a video with T frames, can be viewed as a sequence of DPMs (one for each ``time-step'' $t \in \{1, \ldots, T \}$), which are linked together by dependencies between cluster parameters in neighboring time steps. More specifically, the parameters at a given time step are distributed as a function of the parameters in the previous time step, and the distribution and number of distinct cluster assignments at a given time step are distributed according to all previous cluster assignments and a deletion procedure, described below.
+
+% A transition kernel $P(\theta_{k,t} | \theta_{k,t-1})$ specifies how mixture component parameters in time step $t$ are dependent upon associated mixture component parameters in time step $t-1$. One caveat is that each mixture component must be drawn independently from $\mathbb{G}_{0}$ (the base distribution of the DP, which acts as a prior distribution for the cluster parameters) which we achieve by making $\mathbb{G}_{0}$ the invariant distribution of the transition kernel $P(\theta_{k,t} | \theta_{k,t-1})$ (which, one should note, is a markov chain).
+
+% Recall that each observation $i$ is given a cluster assignments $c_{i}$ (Section~\ref{sec:dpmixture}). Cluster size $m_{k}$ denotes the number of observations assigned to a given cluster $k$; in a DPM, cluster size can be found by counting the number of these assigned observations. In contrast, to account for varying numbers of clusters at different points in time---and in particular, to allow clusters to diminish in size (i.e. to diminish in number of assigned observations) and even die off---the GPUDDPM has a deletion procedure that allows observations to be considered unassigned (or ``removed'') from their assigned clusters at a later time step. This procedure is introduced and described in detail in \cite{caron_2007}.
+
+% The deletion procedure operates in the following way: at each time step, all previous assignments (that have not yet been deleted) are independently considered for deletion. Specifically, each remaining assignment is removed from its cluster with probability $\rho$.  It can be shown that performing deletion in this way is equivalent to, for each cluster $k$, drawing $r \sim \text{Binomial}(m_{k,t-1}, \rho)$, and reducing the previous-time cluster size $m_{k,t-1}$ by $r$ to find the next cluster size $m_{k,t}$. At each time step, this deletion procedure is carried out on all existing assignments, including those at the current time. Hence, the size $m_{k,t}$ of a given cluster $k$ at time $t$ is dependent upon the cluster size at the previous time step, $m_{k,t-1}$, and on the assignments $c_{i}$ for all observations $i \in \{ 1, \ldots, N_{t} \}$ at time $t$. We refer to the conditional distribution over $m_{k,t} | m_{k,t-1}, c_{i}, \rho$ as Del, which we define to be
+% \begin{equation}
+% \begin{split}
+% \label{del_step}
+% \text{Del} &(\cdot | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) := m_{k,t-1} \\
+% &- \text{Binomial}( \cdot | {m_{k,t-1}, \hspace{1mm} \rho}) + \sum_{i=1}^{N_{t}} \mathbb{I}(c_{i,t} = k)
+% \end{split}
+% \end{equation}
+% $\forall k \in \{1, \ldots, K_{t} \}$, where $\rho$ is a deletion parameter, $K_{t}$ is the number of clusters at time $t$, and $\mathbb{I}(c_{i,t} = k)$ is an indicator function whose value is 1 if $c_{i,t} = k$ and 0 otherwise. This process adheres to what \cite{caron_2007} calls a ``uniform deletion strategy'' over all the observations' assignments (since assignments to each cluster have equal probability of being deleted), though a more complex deletion strategy, dependent upon cluster size, can also be implemented and is described in \cite{caron_2007}.
+
+% We also define a distribution, which we refer to as C, that is useful during inference procedures (Section~\ref{sec:inference}) for inferring assigments of observations. We define C to be
+% \begin{equation}
+% \label{C}
+% \begin{split}
+% \text{C} &(\cdot | m_{1:K_{t},t}, \hspace{1mm} \alpha) := \text{Discrete}(\cdot | P(c_{i,t}=1 | m_{1:K_{t},t}), \\
+% &  \ldots, P(c_{i,t}=K_{t+1}  | m_{1:K_{t},t}))
+% \end{split}
+% \end{equation}
+% where
+% \begin{equation}
+% \begin{split}
+% P (c_{i,t}=k  | m_{1:K_{t},t})
+% = \begin{cases}
+% \frac{m_{k,t}}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{1mm} \text{if} \hspace{1mm} k \in \{ 1, \ldots, K_{t} \} \\
+% \frac{\alpha}{\sum_{k=1}^{K_{t}} m_{k,t} + \alpha}, \hspace{1mm} \text{if} \hspace{1mm} k = K_{t} + 1
+% \end{cases}
+% \end{split}
+% \end{equation}
+% $\forall i \in \{1, \ldots, N_{t} \}$, where there exists $K_{t}$ clusters at time $t$, and we give a newly created cluster the index $K_{t+1}$. Distributions \eqref{del_step} and \eqref{C} together comprise what \cite{caron_2007} refers to as the ``Generalized Polya Urn''. Using the Del and C distributions given above, we can define the GPUDDPM generatively as, for each time step $t \in \{1, \ldots, T\}$, and each cluster $k \in \{ 1, \ldots, K_{t} \}$ at time $t$,
+% \begin{align}
+% \label{gpuddpm_def}
+% \begin{split}
+% m_{k,t} | m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho  &\sim \text{Del}(m_{k,t-1}, \hspace{1mm} c_{1:N_{t}, t}, \hspace{1mm} \rho) \\
+% \theta_{k, t} | \theta_{k, t-1}   &\sim
+% \begin{cases}
+%   P(\theta_{k, t} | \theta_{k, t-1}) \hspace{1mm} \text{if} \hspace{1mm} k \in \{ 1, \ldots, K_{t} \} \\
+%   \mathbb{G}_{0}   \hspace{2mm} \text{if} \hspace{2mm} k = K_{t+1}
+% \end{cases} \\
+% c_{i,t} | m_{1:K_{t},t}, \hspace{1mm} \alpha  &\sim  \text{C} (m_{1:K_{t},t}, \hspace{1mm} \alpha) \\
+% \bold{x}_{i,t} | c_{i,t}, \theta_{1:K_{t}, t} &\sim \text{F}(\theta_{c_{i,t}, t})
+% \end{split}
+% \end{align}
+% where we specify distributions for F, $\mathbb{G}_{0}$, and $P(\theta_{k, t} | \theta_{k, t-1})$ in Section~\ref{sec:modelspecification}. The graphical model corresponding with this formulation is shown in Figure \ref{fig:gpuddpm_gm_1}.
+% \begin{figure}[h]
+%         \center{\includegraphics[width=80mm]{../img/gpuddp_gm_1.pdf}}
+%         \caption{\label{fig:gpuddpm_gm_1} Graphical Model of the Generalized Polya Urn Dependent Dirichlet Process Mixture. Note that all observations at time $t$, $\bold{x}_{1:N,t}$, and their associated assignments $c_{1:N,t}$ are denoted respectively as $\bold{x}_{t}$ and $c_{t}$ (this also holds for time step $t-1$).}
+% \end{figure}
+
+
+% \subsection{Deletion Variable Formulation of the GPUDDPM}
+
+% To allow for modeling time-dependent data, the GPUDDPM allows clusters to ``lose'' assigned observations in a deletion step, which modifies the values of the cluster sizes at each time. Instead of incorporating the cluster size variable $m$ directly in the model (as it was in the definition of the GPUDDPM given by \eqref{gpuddpm_def}), we can formulate an equivalent model which makes use of new set of variables called the deletion variables (denoted as $d$), which represent the times at which assignments are deleted. More precisely, we introduce variables $d_{1}, \ldots, d_{N}$ to the model, which denote the times at which the assignments of observations $1, \ldots, N$ are considered removed from their assigned cluster. At each time step, cluster sizes can be recontructed from all previous assignment and deletion variables. With these deletion variables, we can compute the size of cluster $k$ at time $t$, $m_{k,t}$, by
+% \begin{equation}
+% \label{compute_clust_size}
+% m_{k,t} = \sum_{t' = 1}^{t} \mathbb{I}[(c_{t'}=k) \wedge (t < d_{t'})]
+% \end{equation}
+% where $\mathbb{I}[\cdot]$ is an indicator function that evaluates to 1 if its argument is true, and 0 otherwise. Additionally, for an observation $\bold{x}_{i}$ at a given time-step $t$, the deletion time $d_{i}$ can be defined to be $d_{i} = t + l_{i}$, where $l_{i}$ is considered the lifespan of an assignment, is distributed geometrically, and can be expressed as
+% \begin{equation}
+% \label{del_rho_form}
+% l_{i} | \rho  \sim  \rho(1 - \rho)^{l_{i}}
+% \end{equation}
+% This alternate, deletion variable formulation of the GPUDDPM is useful for the MCMC inference algorithm described in Section~\ref{sec:MCMC}. We can write the new formulation of the GPUDDPM as, for each time step $t \in \{1, \ldots, T\}$ and clusters $k \in \{ 1, \ldots, K_{t} \} $ at time $t$,
+% \begin{align}
+% \begin{split}
+% d_{i,t} | \rho  &\sim \text{Geo}(\rho) + t + 1 \\
+% \theta_{k, t} | \theta_{k, t-1}  &\sim
+% \begin{cases}
+% P(\theta_{k,t} | \theta_{k,t-1}) \hspace{2mm} \text{if} \hspace{2mm} k \in \{ 1, \ldots, K_{t} \} \\
+% \mathbb{G}_{0} \hspace{2mm} \text{if} \hspace{2mm} k = K_{t} + 1
+% \end{cases} \\
+% c_{i,t} | \bold{c}_{1:t-1}, \bold{d}_{1:t-1}, \alpha  &\sim  \text{C}(\bold{c}_{1:t-1}, \bold{d}_{1:t-1}, \alpha) \\
+% \bold{x}_{i,t} | c_{i,t}, \theta_{c_{i,t},t}  &\sim  \text{F}(\theta_{c_{i,t}, t})
+% \end{split}
+% \end{align}
+% where $\bold{c}_{t} = c_{1,t}, \ldots, c_{N_{t}, t}$ (for $N_{t}$ observations at time $t$), $\bold{d}_{t} = d_{1,t}, \ldots, d_{N_{t}, t}$, and we specify distributions for F, $\mathbb{G}_{0}$, and $P(\theta_{k, t} | \theta_{k, t-1})$ in Section~\ref{sec:modelspecification}. This formulation of the GPUDDPM is also used by \cite{gasthaus_thesis} and \cite{caron_2007}. The associated graphical model for this formulation is given in Figure~\ref{fig:gpuddpm_gm_2}.
+% \begin{figure}[h]
+%         \center{\includegraphics[width=82mm]{../img/gpuddp_gm_3.pdf}}
+%         \caption{Graphical model of the deletion variable and auxiliary variable transition kernel representation of the GPUDDPM}
+%         \label{fig:gpuddpm_gm_2}
+% \end{figure}
+
+
+
+\end{document}
