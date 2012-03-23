@@ -36,12 +36,12 @@
 % ------------
 
 \begin{abstract}
-This is a review of graphical models for representing humans and other objects. Models of both deformable and non-deformable objects allow us, given image and video data, to infer the pose and/or orientation of objects. We aim to either learn the structure and pose of objects, or assume a structure and learn the pose of objects, and incorporate this appearance model into the GPUDDPM detection and tracking scheme.
+This is a review of graphical models for representing humans and other articulated bodies. Models of both deformable and non-deformable objects allow us, given image and video data, to infer the pose and/or orientation of objects. We aim to either learn the structure and pose of objects, or assume a structure and learn the pose of objects, and incorporate this appearance model into the GPUDDPM detection and tracking scheme.
 \end{abstract}
 
 
 \section{Data}
-We take the data to be the same as in the previous paper: frame difference (i.e. foreground, i.e. silhouette) pixel positions, and additional local appearance features
+We take our data to be the same as in the previous paper: frame difference (i.e. foreground, i.e. silhouette) pixel positions, and additional local appearance features
 
 \section{Sigal Thesis}
 
@@ -55,7 +55,15 @@ Inference is carried out using Particle Message Passing (PaMPas).
 
 \subsection{Chapter 4: graphical models for rigid objects}
 
-Sigal states, ``we combine techniques from discriminative learning, graphical models, belief propagation, and particle filtering to achieve reliable multi-component object detection and tracking." [p98]
+Sigal breaks down his framework into five components [p103]
+\begin{enumerate} 
+\item a graphical model
+\item an inference algorithm that provides the ability to infer a state of each node in the graph
+\item a local evidence distribution (or image likelihood)
+\item a proposal process for some or all nodes in a graphical model
+\item a set of spatial and/or temporal constraints corresponding to the edges in a graph
+\end{enumerate}
+Each object is represented by a undirected graphical model. The model for each object contains a set of four loosely connected regions; for example, a human is represented by head, left arm, right arm, and leg regions. Spatial constraints govern the relative positions of the regions for a given object type, and are modeled with a mixture of Gaussians. Sigal defines a likelihood, which models the probability of image data given one of the regions. Features for the likelihood for each region for a given object are found in a supervised manner, by using a boosted classifier.
 
 
 \subsection{Chapter 5: graphical models for loose-limbed objects}
