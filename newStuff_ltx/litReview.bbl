@@ -1,0 +1,29 @@
+\begin{thebibliography}{3}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Sigal(2008)]{Sigal:2008:CGM:1467812}
+Leonid Sigal.
+\newblock \emph{Continuous-state graphical models for object localization, pose
+  estimation and tracking}.
+\newblock PhD thesis, Providence, RI, USA, 2008.
+\newblock AAI3318361.
+
+\bibitem[Sudderth et~al.(2004)Sudderth, M, Freeman, and
+  Willsky]{Sudderth04distributedocclusion}
+Erik~B. Sudderth, Michael~I. M, William~T. Freeman, and Alan~S. Willsky.
+\newblock Distributed occlusion reasoning for tracking with nonparametric
+  belief propagation.
+\newblock In \emph{In NIPS}, pages 1369--1376. MIT Press, 2004.
+
+\bibitem[Wu et~al.(2003)Wu, Hua, and Yu]{wu2003tracking}
+Ying Wu, Gang Hua, and Ting Yu.
+\newblock Tracking articulated body by dynamic markov network.
+\newblock In \emph{Computer Vision, 2003. Proceedings. Ninth IEEE International
+  Conference on}, pages 1094 --1101 vol.2, oct. 2003.
+\newblock \doi{10.1109/ICCV.2003.1238471}.
+
+\end{thebibliography}
